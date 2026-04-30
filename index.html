@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Web Radio Ultimate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <style>
+        body { 
+            background: linear-gradient(-45deg, #020617, #0f172a, #064e3b, #020617);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #f8fafc; 
+            overflow-x: hidden;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .pulse-ring { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
+        /* Custom Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: currentColor;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+        .eq-slider::-webkit-slider-thumb { background: #cbd5e1; height: 12px; width: 12px; margin-top: -4px;}
+        
+        canvas { width: 100%; height: 60px; border-radius: 0.5rem; background: #000; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Floating Emojis & Confetti */
+        .floating-emoji {
+            position: fixed;
+            bottom: -50px;
+            font-size: 2rem;
+            pointer-events: none;
+            animation: floatUp 4s ease-in forwards;
+            z-index: 50;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; transform: translateY(-10vh) scale(1.2) rotate(-10deg); }
+            50% { transform: translateY(-50vh) scale(1) rotate(10deg); }
+            100% { transform: translateY(-100vh) scale(0.8) rotate(-20deg); opacity: 0; }
+        }
+        
+        .confetti-piece {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .vinyl-spin { animation: spin 4s linear infinite; }
+        .vinyl-paused { animation-play-state: paused; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .marquee-container { overflow: hidden; white-space: nowrap; position: relative; }
+        .marquee-text { display: inline-block; padding-left: 100%; animation: marquee 10s linear infinite; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        .chat-msg { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .recording-pulse { animation: recPulse 1.5s infinite; }
+        @keyframes recPulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        
+        /* FX Toggles */
+        .fx-radio:checked + div { background: #10b981; border-color: #059669; color: white; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 antialiased">
+
+    <!-- VIEW: SETUP & DASHBOARD -->
+    <div id="setup-view" class="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-700 rounded-3xl shadow-2xl p-6 transition-all duration-300 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        
+        <div class="text-center mb-8 relative z-10">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800 border border-slate-600 mb-4 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">P2P Radio Ultimate</h1>
+            <p class="text-slate-400 text-sm mt-1">Serverless Zero-Latency Broadcasting</p>
+        </div>
+
+        <div class="space-y-6 relative z-10">
+            <!-- Immediately visible since we no longer need to wait for a backend -->
+            <div id="main-setup-content" class="space-y-6">
+                <div class="space-y-3">
+                    <input type="text" id="station-name-input" placeholder="Station Name (e.g. Synthwave Mix)" class="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder-slate-600 transition">
+                    <div class="flex gap-2">
+                        <input type="text" id="dj-username-input" placeholder="Your DJ Name" class="flex-1 bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder-slate-600 transition">
+                        <div class="relative group" title="Station Theme Color">
+                            <input type="color" id="station-color-input" value="#10b981" class="h-full w-14 bg-slate-950/50 border border-slate-700 rounded-xl cursor-pointer p-1">
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-xl border border-emerald-500/30 hover:border-emerald-400 bg-emerald-900/20 hover:bg-emerald-800/30 transition cursor-pointer group flex items-center gap-4" onclick="startBroadcaster()">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/40 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-emerald-50 transition">Start Broadcasting</h3>
+                            <p class="text-emerald-200/60 text-xs">Mix mic, music, effects, and chat.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-cyan-500/50 text-xs font-bold tracking-widest uppercase">Live Stations</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
+                </div>
+
+                <div id="stations-list" class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="flex justify-center items-center py-6">
+                        <div class="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span class="ml-3 text-slate-400 text-sm" id="dashboard-status">Waiting for Database connection...</span>
+                    </div>
+                </div>
+
+                <details class="group mt-2">
+                    <summary class="text-xs text-slate-500 hover:text-slate-300 cursor-pointer text-center list-none outline-none transition">Have a private code? Join manually.</summary>
+                    <div class="mt-3 flex gap-2">
+                        <input type="text" id="join-id-input" placeholder="STATION-ID" class="w-full bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500 uppercase font-mono transition">
+                        <button onclick="startListenerManual()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition shadow-[0_0_15px_rgba(8,145,178,0.4)]">Join</button>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: BROADCASTER (DJ) -->
+    <div id="dj-view" class="hidden w-full max-w-6xl bg-slate-900/80 backdrop-blur-xl border border-slate-700 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-6 md:p-8 flex flex-col h-[95vh]">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 shrink-0">
+            <div class="flex items-center gap-4 bg-slate-950/50 pr-6 pl-2 py-2 rounded-full border border-slate-800">
+                <div class="bg-slate-800 rounded-full p-2 cursor-pointer hover:bg-slate-700 transition" onclick="copyStationId()" title="Copy ID">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </div>
+                <div>
+                    <h2 id="dj-station-name" class="text-xl font-bold text-white leading-tight">My Station</h2>
+                    <div class="flex items-center gap-2">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                        <span id="station-id-display" class="font-mono text-xs font-bold text-slate-400 tracking-widest">GENERATING...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-4 items-center flex-wrap justify-center">
+                <!-- Hype Counter -->
+                <div class="bg-pink-950/40 px-4 py-1.5 rounded-full border border-pink-900/50 flex items-center gap-2">
+                    <span class="text-pink-400 text-sm animate-pulse">💖</span>
+                    <span id="dj-hype-count" class="font-mono font-bold text-pink-300 text-sm">0</span>
+                </div>
+                <button id="record-btn" onclick="toggleRecording()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 px-4 py-2 rounded-full transition font-bold flex items-center gap-2">
+                    <span id="record-dot" class="h-2 w-2 rounded-full bg-slate-500"></span>
+                    <span id="record-text">RECORD</span>
+                </button>
+                <button onclick="endBroadcast()" class="text-xs bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 px-4 py-2 rounded-full transition font-bold">END STREAM</button>
+                <div class="bg-cyan-950/40 px-5 py-2 rounded-full border border-cyan-900/50 flex items-center gap-3">
+                    <span class="text-cyan-400 text-xs font-bold uppercase tracking-wider">Listeners</span>
+                    <div class="bg-cyan-500/20 px-3 py-1 rounded-full">
+                        <span id="listener-count" class="font-mono font-bold text-cyan-300 text-lg">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+            
+            <!-- Music Deck & Chat (Col 1 & 2) -->
+            <div class="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                <!-- Music Deck -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 flex flex-col relative overflow-hidden shrink-0">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                        <svg class="w-32 h-32 vinyl-spin vinyl-paused" id="vinyl-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="50" cy="50" r="48" stroke="currentColor" stroke-width="4"/>
+                            <circle cx="50" cy="50" r="35" stroke="currentColor" stroke-width="1"/>
+                            <circle cx="50" cy="50" r="25" stroke="currentColor" stroke-width="1"/>
+                            <circle cx="50" cy="50" r="15" fill="currentColor"/>
+                        </svg>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-4 relative z-10">
+                        <h3 class="text-emerald-400 font-bold text-sm tracking-wider flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" /></svg>
+                            MUSIC DECK
+                        </h3>
+                        <div class="flex gap-2">
+                            <label class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-2 sm:px-3 rounded-lg cursor-pointer transition shadow-sm border border-slate-600">
+                                + Files <input type="file" id="music-files" accept="audio/*" multiple class="hidden" onchange="handleMusicUpload(event)">
+                            </label>
+                            <label class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] sm:text-xs font-bold py-1.5 px-2 sm:px-3 rounded-lg cursor-pointer transition shadow-sm border border-slate-600">
+                                + Folder <input type="file" id="music-folder" webkitdirectory multiple class="hidden" onchange="handleMusicUpload(event)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Moved Controls & Playlist UP for better visibility -->
+                    <div class="flex justify-between items-center mb-3 z-10">
+                        <div class="flex gap-2">
+                            <button onclick="toggleLoop()" id="btn-loop" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔁 Loop</button>
+                            <button onclick="shufflePlaylist()" id="btn-shuffle" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔀 Shuffle</button>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded border border-slate-800">
+                            <span class="text-[10px] text-slate-400 font-bold uppercase">Tempo</span>
+                            <input type="range" id="tempo-slider" class="w-20 text-emerald-500" min="0.5" max="1.5" step="0.05" value="1" oninput="updateTempo()">
+                            <span id="tempo-label" class="text-[10px] text-slate-300 w-6 text-right">1.0x</span>
+                        </div>
+                    </div>
+
+                    <div id="playlist-container" class="hidden flex-col h-[120px] bg-slate-900/80 rounded-xl border border-slate-800 p-2 mb-4 z-10 shrink-0 shadow-inner">
+                        <div id="playlist-list" class="flex-1 overflow-y-auto custom-scrollbar text-sm space-y-1 pr-2"></div>
+                    </div>
+
+                    <!-- YouTube Search Integration -->
+                    <div class="flex gap-2 mb-3 z-10">
+                        <input type="text" id="yt-search-input" placeholder="Search YouTube (e.g. Lofi Girl)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-red-500 transition" onkeypress="if(event.key === 'Enter') searchYouTube()">
+                        <button onclick="searchYouTube()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                            Search
+                        </button>
+                    </div>
+                    
+                    <div id="yt-results-container" class="hidden flex-col gap-1 mb-3 z-10 max-h-40 overflow-y-auto custom-scrollbar bg-slate-900 rounded-lg p-1 border border-slate-700 shadow-xl"></div>
+
+                    <!-- Cloud Saved URLs Integration -->
+                    <div class="flex gap-2 mb-3 z-10">
+                        <input type="text" id="yt-url-input" placeholder="Paste YouTube URL to save to cloud..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition" onkeypress="if(event.key === 'Enter') saveYoutubeUrl()">
+                        <button onclick="saveYoutubeUrl()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-sm shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>
+                            Save
+                        </button>
+                    </div>
+                    
+                    <div id="cloud-library-container" class="hidden flex-col h-[140px] bg-slate-900/80 rounded-xl border border-slate-800 p-2 mb-4 z-10 shrink-0 shadow-inner overflow-hidden">
+                        <div class="text-[10px] text-slate-400 font-bold uppercase mb-2 px-1 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            Cloud Saved Tracks
+                        </div>
+                        <div id="cloud-library-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-1"></div>
+                    </div>
+
+                    <!-- DJ YouTube Player Container -->
+                    <div id="yt-player-container-dj" class="hidden z-10 w-full mb-3 rounded-lg overflow-hidden border border-slate-800 bg-black h-[180px] shrink-0">
+                        <div id="yt-player-dj" class="w-full h-full"></div>
+                    </div>
+
+                    <audio id="dj-audio-player" controls class="w-full h-10 mt-auto z-10 outline-none rounded-lg" onplay="onDJPlay()" onpause="document.getElementById('vinyl-icon').classList.add('vinyl-paused')"></audio>
+                </div>
+
+                <!-- Live Chat -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl flex flex-col flex-1 min-h-[250px] overflow-hidden">
+                    <div class="p-3 border-b border-slate-800 bg-slate-900/50 shrink-0">
+                        <h3 class="text-cyan-400 font-bold text-xs tracking-wider flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            LIVE CHAT (HOST)
+                        </h3>
+                    </div>
+                    <div id="dj-chat-messages" class="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-2 text-sm flex flex-col">
+                        <div class="text-slate-500 text-xs text-center italic mt-auto">Chat room open. Say hi!</div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 border-t border-slate-800 flex gap-2 shrink-0">
+                        <input type="text" id="dj-chat-input" placeholder="Type message..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500 transition" onkeypress="handleChatEnter(event, 'dj')">
+                        <button onclick="sendChatMessage('dj')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 rounded-lg text-sm font-bold transition">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mixer & FX (Col 3 & 4) -->
+            <div class="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                
+                <!-- Mixer Panel -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 shrink-0">
+                    <h3 class="text-purple-400 font-bold text-sm tracking-wider flex items-center gap-2 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        MASTER MIXER
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <!-- Volumes -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="flex justify-between text-[10px] text-slate-400 mb-1 font-bold uppercase"><span>Music / YT Vol</span><span id="music-vol-label">100%</span></div>
+                                <input type="range" id="music-vol" class="text-emerald-500" min="0" max="1.5" step="0.05" value="1" oninput="updateMixer()">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-slate-400 mb-1 font-bold uppercase"><span>Mic Vol</span><span id="mic-vol-label">100%</span></div>
+                                <input type="range" id="mic-vol" class="text-purple-500" min="0" max="2" step="0.05" value="1" oninput="updateMixer()">
+                            </div>
+                        </div>
+
+                        <!-- 3-Band EQ & Voice FX -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                                <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Local Music EQ</div>
+                                <div class="flex justify-between px-1">
+                                    <div class="flex flex-col items-center">
+                                        <input type="range" id="eq-low" class="eq-slider text-slate-300 w-16" min="-15" max="15" step="1" value="0" oninput="updateMixer()">
+                                        <span class="text-[9px] text-slate-400 mt-1">LOW</span>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <input type="range" id="eq-mid" class="eq-slider text-slate-300 w-16" min="-15" max="15" step="1" value="0" oninput="updateMixer()">
+                                        <span class="text-[9px] text-slate-400 mt-1">MID</span>
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <input type="range" id="eq-high" class="eq-slider text-slate-300 w-16" min="-15" max="15" step="1" value="0" oninput="updateMixer()">
+                                        <span class="text-[9px] text-slate-400 mt-1">HIGH</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex flex-col">
+                                <div class="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Mic Filter</div>
+                                <div class="flex bg-slate-950 rounded-lg p-1 border border-slate-700 h-full">
+                                    <label class="flex-1 text-center cursor-pointer relative">
+                                        <input type="radio" name="mic-filter" value="clean" checked class="fx-radio hidden" onchange="updateMixer()">
+                                        <div class="text-[10px] font-bold py-1 rounded transition text-slate-400">CLEAN</div>
+                                    </label>
+                                    <label class="flex-1 text-center cursor-pointer relative">
+                                        <input type="radio" name="mic-filter" value="mega" class="fx-radio hidden" onchange="updateMixer()">
+                                        <div class="text-[10px] font-bold py-1 rounded transition text-slate-400">MEGA</div>
+                                    </label>
+                                    <label class="flex-1 text-center cursor-pointer relative">
+                                        <input type="radio" name="mic-filter" value="space" class="fx-radio hidden" onchange="updateMixer()">
+                                        <div class="text-[10px] font-bold py-1 rounded transition text-slate-400">SPACE</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Echo Toggle -->
+                        <div class="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-800">
+                            <span class="text-xs font-bold text-slate-300">MIC DELAY FX</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="mic-echo" class="sr-only peer" onchange="updateMixer()">
+                                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Synth Soundboard -->
+                <div class="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 shrink-0">
+                    <h3 class="text-pink-400 font-bold text-xs tracking-wider flex items-center gap-2 mb-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" /></svg>
+                        LIVE SOUNDBOARD
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="playSynthFX('airhorn')" class="bg-slate-800 hover:bg-slate-700 active:bg-pink-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">📯</span> Horn
+                        </button>
+                        <button onclick="playSynthFX('applause')" class="bg-slate-800 hover:bg-slate-700 active:bg-yellow-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">👏</span> Applause
+                        </button>
+                        <button onclick="playSynthFX('subdrop')" class="bg-slate-800 hover:bg-slate-700 active:bg-emerald-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">💣</span> Drop
+                        </button>
+                        
+                        <button onclick="playSynthFX('laser')" class="bg-slate-800 hover:bg-slate-700 active:bg-cyan-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">⚡</span> Laser
+                        </button>
+                        <button onclick="playSynthFX('magic')" class="bg-slate-800 hover:bg-slate-700 active:bg-purple-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">✨</span> Chime
+                        </button>
+                        <button onclick="triggerConfettiSync()" class="bg-slate-800 hover:bg-slate-700 active:bg-rose-600 border border-slate-700 rounded-xl py-2 text-xs font-bold text-slate-300 hover:text-white transition shadow-sm flex flex-col items-center gap-1">
+                            <span class="text-lg">🎉</span> Confetti
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex gap-2 shrink-0">
+                    <button id="mute-mic-btn" onclick="toggleMute()" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-4 flex justify-center items-center transition shadow-lg">
+                        <svg id="mic-icon-on" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                        <svg id="mic-icon-off" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
+                    </button>
+                    
+                    <button id="deafen-btn" onclick="toggleDeafen()" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl py-4 flex justify-center items-center transition relative group shadow-lg">
+                        <svg id="deafen-icon-off" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                        <svg id="deafen-icon-on" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 011.414 0L10 14.586H8.414l-1.414-1.414-4.707 4.707A1 1 0 011 17v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" /></svg>
+                        <span class="absolute -top-10 bg-slate-900 text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap shadow-md border border-slate-700">Monitor Mute</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Output Visualizer -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 relative overflow-hidden mt-6 shrink-0 shadow-inner group">
+            <span class="absolute top-3 left-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold z-10">Master Output</span>
+            <canvas id="dj-visualizer" class="w-full h-16 opacity-80 mt-4"></canvas>
+        </div>
+        
+    </div>
+
+    <!-- VIEW: LISTENER -->
+    <div id="listener-view" class="hidden w-full max-w-lg bg-slate-900/80 backdrop-blur-xl border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh] transition-colors duration-1000">
+        <!-- Thematic Background Glow (Set dynamically) -->
+        <div id="listener-glow-1" class="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-30 transition-colors duration-1000"></div>
+        <div id="listener-glow-2" class="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-20 transition-colors duration-1000"></div>
+
+        <!-- Top Info -->
+        <div class="p-8 pb-4 text-center relative shrink-0 z-10">
+            <!-- Global Hype -->
+            <div class="absolute top-4 right-4 bg-slate-900/60 border border-pink-500/30 px-3 py-1 rounded-full flex items-center gap-1.5 backdrop-blur shadow-lg">
+                <span class="text-xs animate-pulse">💖</span>
+                <span id="listener-hype-count" class="text-xs font-bold text-pink-300 font-mono">0</span>
+            </div>
+
+            <h2 id="listener-station-display" class="text-3xl font-extrabold text-white mb-1 tracking-tight drop-shadow-lg mt-2">Tuning in...</h2>
+            <p id="listener-status-text" class="text-slate-400 font-medium">Syncing via Firebase...</p>
+            
+            <!-- Now Playing Marquee -->
+            <div id="now-playing-container" class="mt-4 bg-slate-950/50 border border-slate-800 rounded-full py-1.5 px-4 hidden flex items-center gap-2 max-w-[80%] mx-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white shrink-0 animate-pulse" viewBox="0 0 20 20" fill="currentColor"><path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" /></svg>
+                <div class="marquee-container w-full text-xs text-white/80 font-medium">
+                    <span id="now-playing-text" class="marquee-text">Waiting for DJ...</span>
+                </div>
+            </div>
+            
+            <div class="relative w-32 h-32 mx-auto mt-6 mb-6 flex items-center justify-center">
+                <div id="listener-status-icon" class="absolute inset-0 rounded-full bg-slate-800 border-4 border-slate-700 flex items-center justify-center transition-all duration-500 shadow-inner z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div id="buffer-bar" class="w-3/4 mx-auto bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-cyan-500 h-1.5 rounded-full w-full animate-[pulse_1s_ease-in-out_infinite] origin-left scale-x-0 transition-transform duration-1000" style="transform: scaleX(1)"></div>
+            </div>
+
+            <div id="listener-visualizer-container" class="hidden w-full bg-slate-950/70 rounded-xl p-2 border border-slate-800 shadow-inner">
+                <canvas id="listener-visualizer" class="h-16"></canvas>
+            </div>
+        </div>
+
+        <!-- Chat Area (Listener) -->
+        <div id="listener-chat-container" class="hidden flex-1 flex flex-col min-h-[150px] border-t border-slate-800 bg-slate-900/50 z-10">
+            <div id="listener-chat-messages" class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-3 text-sm flex flex-col">
+                <div class="text-slate-500 text-xs text-center italic mt-auto">Connected to chat.</div>
+            </div>
+            <div class="p-3 bg-slate-950/80 border-t border-slate-800 flex gap-2 shrink-0">
+                <input type="text" id="listener-chat-input" placeholder="Chat with everyone..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500 transition" onkeypress="handleChatEnter(event, 'listener')">
+                <button id="listener-send-btn" onclick="sendChatMessage('listener')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 rounded-lg text-sm font-bold transition">Send</button>
+            </div>
+        </div>
+
+        <!-- Controls (Listener) -->
+        <div class="p-4 bg-slate-950/80 border-t border-slate-800 shrink-0 z-10">
+            <!-- Interactive Reactions -->
+            <div id="reactions-bar" class="hidden flex justify-center gap-4 mb-4">
+                <button onclick="sendReaction('🎉')" class="text-2xl hover:scale-125 transition transform hover:-translate-y-2 bg-slate-800 w-12 h-12 rounded-full border border-slate-700 shadow-lg">🎉</button>
+                <button onclick="sendReaction('💖')" class="text-2xl hover:scale-125 transition transform hover:-translate-y-2 bg-slate-800 w-12 h-12 rounded-full border border-slate-700 shadow-lg">💖</button>
+                <button onclick="sendReaction('🔥')" class="text-2xl hover:scale-125 transition transform hover:-translate-y-2 bg-slate-800 w-12 h-12 rounded-full border border-slate-700 shadow-lg">🔥</button>
+                <button onclick="sendReaction('🎵')" class="text-2xl hover:scale-125 transition transform hover:-translate-y-2 bg-slate-800 w-12 h-12 rounded-full border border-slate-700 shadow-lg">🎵</button>
+            </div>
+
+            <!-- Hidden YouTube Player for Listeners -->
+            <div id="yt-player-listener" class="hidden"></div>
+            
+            <!-- Volume & Disconnect -->
+            <div class="flex items-center gap-3">
+                <button id="listener-deafen-btn" onclick="toggleListenerDeafen()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white p-3 rounded-xl transition shadow-md">
+                    <svg id="listener-vol-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                </button>
+                <input type="range" id="listener-vol-slider" class="flex-1 text-slate-300" min="0" max="1" step="0.05" value="1" oninput="updateListenerVolume()">
+                <button onclick="location.reload()" class="bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 font-bold py-3 px-6 rounded-xl transition shadow-md ml-2">
+                    LEAVE
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- GLOBAL STATE ---
+    let myUsername = "Anonymous";
+    let globalHypeCount = 0;
+    
+    // Audio Nodes (Local DJ only now)
+    let audioCtx = null;
+    let masterCompressor = null; 
+    let isMicMuted = false;
+    let isDeafened = false; 
+    
+    let isBroadcasting = false;
+    let myStationId = null;
+    let myStationName = "";
+    let myStationColor = "#10b981"; 
+    
+    // Playlist State
+    let playlist = [];
+    let currentTrackIndex = 0;
+    let isLooping = false;
+
+    // --- API STATE ---
+    const YT_API_KEY = "AIzaSyBFTCtKzfMfpaj3aFjFPLbaysw5atwy_LA"; // Hardcoded default key
+    let djYtPlayer = null;
+    let listenerYtPlayer = null;
+    let isYtApiReady = false;
+    let djYtEndTimeout = null; 
+
+    function onYouTubeIframeAPIReady() {
+        isYtApiReady = true;
+    }
+
+    // --- FIREBASE CORE LOGIC ---
+    let fbDb, fbAuth, fbAppId, fbUserId;
+    let currentStationRef = null;
+    let activeChatUnsubscribe = null;
+    let activeStationUnsubscribe = null;
+
+    // We must expose these so our sync logic can use them
+    let fbDoc, fbSetDoc, fbUpdateDoc, fbCollection, fbOnSnapshot, fbAddDoc;
+
+    // Your direct Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6fcHsdtBCHLWDLKm9yIJokgeoll0i7c0",
+      authDomain: "os-chat-and-phone.firebaseapp.com",
+      databaseURL: "https://os-chat-and-phone-default-rtdb.firebaseio.com",
+      projectId: "os-chat-and-phone",
+      storageBucket: "os-chat-and-phone.firebasestorage.app",
+      messagingSenderId: "177525708536",
+      appId: "1:177525708536:web:0238d2be8837452a214d0d",
+      measurementId: "G-SBKNFS2LRE"
+    };
+
+    async function initFirebaseAndApp() {
+        try {
+            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+            const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+            const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+
+            fbAppId = firebaseConfig.projectId;
+
+            const app = initializeApp(firebaseConfig);
+            fbAuth = getAuth(app);
+            fbDb = getFirestore(app);
+
+            // Export to global for helper functions
+            fbDoc = doc;
+            fbSetDoc = setDoc;
+            fbUpdateDoc = updateDoc;
+            fbCollection = collection;
+            fbOnSnapshot = onSnapshot;
+            fbAddDoc = addDoc;
+            window.fbDeleteDoc = deleteDoc; 
+
+            // RULE 3: Auth First
+            await signInAnonymously(fbAuth);
+
+            onAuthStateChanged(fbAuth, (user) => {
+                if (user) {
+                    fbUserId = user.uid;
+                    initDashboard();
+                    loadSavedPlaylist();
+                }
+            });
+        } catch (error) {
+            console.error("Firebase init failed:", error);
+            document.getElementById('dashboard-status').innerText = "Database Connection Failed.";
+        }
+    }
+
+    // --- DASHBOARD (Firebase Synced) ---
+    function initDashboard() {
+        const dashboardStatus = document.getElementById('dashboard-status');
+        const stationsRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations');
+
+        fbOnSnapshot(stationsRef, (snapshot) => {
+            dashboardStatus.innerText = 'Stations synced via Firebase.';
+            dashboardStatus.parentElement.querySelector('div').classList.replace('border-cyan-500', 'border-emerald-500');
+            dashboardStatus.parentElement.querySelector('div').classList.remove('animate-spin');
+            
+            const list = document.getElementById('stations-list');
+            list.innerHTML = '';
+            
+            let activeStations = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // Filter out stations inactive for > 2 hours
+                if (Date.now() - data.updatedAt < 2 * 60 * 60 * 1000) {
+                    activeStations.push({ id: doc.id, ...data });
+                }
+            });
+
+            if (activeStations.length === 0) {
+                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">Dead air. Start the first broadcast!</p>';
+                return;
+            }
+
+            activeStations.forEach(data => {
+                if (isBroadcasting && data.id === myStationId) return;
+
+                const div = document.createElement('div');
+                const stationColor = data.color || '#06b6d4';
+                div.className = 'bg-slate-900/80 p-3 rounded-xl flex justify-between items-center border border-slate-700 hover:bg-slate-800 cursor-pointer transition group shadow-sm';
+                div.style.borderColor = `rgba(51, 65, 85, 0.5)`;
+                div.onmouseover = () => div.style.borderColor = stationColor;
+                div.onmouseout = () => div.style.borderColor = `rgba(51, 65, 85, 0.5)`;
+                
+                div.onclick = () => startListener(data.id, data.name, stationColor);
+                
+                div.innerHTML = `
+                    <div class="overflow-hidden pr-2 flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full" style="background-color: ${stationColor}; box-shadow: 0 0 8px ${stationColor}"></div>
+                        <div>
+                            <h4 class="text-white font-bold truncate transition" style="color: ${stationColor}">${escapeHTML(data.name)}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="flex h-2 w-2 relative">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                </span>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Host: ${escapeHTML(data.host || 'DJ')}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="bg-slate-800 text-white hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap">
+                        TUNE IN
+                    </button>
+                `;
+                list.appendChild(div);
+            });
+        }, (error) => console.error("Dashboard error:", error));
+    }
+
+    // --- UI HELPERS ---
+    function switchView(viewId) {
+        ['setup-view', 'dj-view', 'listener-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    async function copyStationId() {
+        const id = document.getElementById('station-id-display').innerText;
+        navigator.clipboard.writeText(id).catch(() => {});
+        const btn = document.querySelector('[title="Copy ID"]');
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+        setTimeout(() => btn.innerHTML = oldHtml, 1500);
+    }
+    function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
+
+    // --- LOCAL FILE PLAYLIST LOGIC ---
+    function handleMusicUpload(e) {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const validAudioExtensions = /\.(mp3|wav|ogg|flac|aac|m4a)$/i;
+        const newFiles = Array.from(e.target.files).filter(f => (f.type && f.type.startsWith('audio/')) || f.name.match(validAudioExtensions));
+
+        if (newFiles.length > 0) {
+            const wasEmpty = playlist.length === 0;
+            playlist = playlist.concat(newFiles);
+            renderPlaylist();
+            if (wasEmpty) playTrack(0);
+        }
+        e.target.value = '';
+    }
+
+    function queueYouTubeVideo(videoId, title, playNow, event) {
+        if(event) event.stopPropagation();
+        const item = { type: 'youtube', id: videoId, name: title };
+        const wasEmpty = playlist.length === 0;
+        playlist.push(item);
+        renderPlaylist();
+        if (wasEmpty || playNow) {
+            playTrack(playlist.length - 1);
+        }
+    }
+
+    function playTrack(index) {
+        if (index < 0 || index >= playlist.length) return;
+        currentTrackIndex = index;
+        const item = playlist[index];
+        const djPlayer = document.getElementById('dj-audio-player');
+        const ytContainer = document.getElementById('yt-player-container-dj');
+        
+        document.getElementById('playlist-container').classList.remove('hidden');
+        document.getElementById('playlist-container').classList.add('flex');
+
+        if (item instanceof File) {
+            // Local files only play for the DJ in "Just Firebase" mode
+            if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+            ytContainer.classList.add('hidden');
+            djPlayer.classList.remove('hidden');
+            djPlayer.src = URL.createObjectURL(item);
+            djPlayer.play();
+            pushSyncStateToFirebase('local', item.name);
+        } else if (item.type === 'youtube') {
+            djPlayer.pause();
+            djPlayer.classList.add('hidden');
+            ytContainer.classList.remove('hidden');
+
+            if (!djYtPlayer) {
+                djYtPlayer = new YT.Player('yt-player-dj', {
+                    height: '100%', width: '100%', videoId: item.id,
+                    playerVars: { 'autoplay': 1, 'controls': 1, 'playsinline': 1 },
+                    events: {
+                        'onReady': (event) => {
+                            event.target.setVolume(document.getElementById('music-vol').value * 100);
+                            event.target.playVideo();
+                        },
+                        'onStateChange': (event) => {
+                            clearTimeout(djYtEndTimeout);
+                            if (event.data === YT.PlayerState.ENDED) {
+                                djYtEndTimeout = setTimeout(() => {
+                                    if (djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
+                                        const state = djYtPlayer.getPlayerState();
+                                        if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                                            playNextTrack();
+                                        }
+                                    }
+                                }, 2000);
+                            } else if (event.data === YT.PlayerState.PLAYING) {
+                                onDJPlay();
+                            } else if (event.data === YT.PlayerState.PAUSED) {
+                                document.getElementById('vinyl-icon').classList.add('vinyl-paused');
+                                pushSyncStateToFirebase('paused', item.name);
+                            }
+                        }
+                    }
+                });
+            } else {
+                djYtPlayer.loadVideoById(item.id);
+            }
+            // Push initial play command
+            pushSyncStateToFirebase('playing', item.name, item.id, 0);
+        }
+        renderPlaylist();
+    }
+
+    function playNextTrack() {
+        if (playlist.length === 0) return;
+        let nextIndex = currentTrackIndex + 1;
+        if (nextIndex >= playlist.length) {
+            if (isLooping) nextIndex = 0;
+            else return; 
+        }
+        playTrack(nextIndex);
+    }
+
+    function onDJPlay() {
+        document.getElementById('vinyl-icon').classList.remove('vinyl-paused');
+        if (playlist.length > 0) {
+            const item = playlist[currentTrackIndex];
+            if (item.type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
+                try {
+                    const vidObj = djYtPlayer.getVideoData();
+                    if (vidObj && vidObj.video_id && vidObj.video_id === item.id) {
+                        pushSyncStateToFirebase('playing', item.name, vidObj.video_id, djYtPlayer.getCurrentTime());
+                    }
+                } catch(e) {}
+            }
+        }
+    }
+
+    function pushSyncStateToFirebase(status, trackName, videoId = null, time = 0) {
+        if (!isBroadcasting || !currentStationRef) return;
+        fbUpdateDoc(currentStationRef, {
+            updatedAt: Date.now(),
+            currentTrack: {
+                status: status, // 'playing', 'paused', 'local'
+                title: trackName,
+                videoId: videoId,
+                time: time,
+                timestamp: Date.now()
+            }
+        }).catch(e => console.error(e));
+    }
+
+    function toggleLoop() {
+        isLooping = !isLooping;
+        const btn = document.getElementById('btn-loop');
+        btn.classList.toggle('bg-emerald-900/50', isLooping);
+        btn.classList.toggle('text-emerald-400', isLooping);
+        btn.classList.toggle('border-emerald-500/50', isLooping);
+    }
+
+    function shufflePlaylist() {
+        if (playlist.length <= 1) return;
+        let currentFile = playlist[currentTrackIndex];
+        for (let i = playlist.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
+        }
+        currentTrackIndex = playlist.indexOf(currentFile);
+        renderPlaylist();
+    }
+
+    function updateTempo() {
+        const val = document.getElementById('tempo-slider').value;
+        document.getElementById('dj-audio-player').playbackRate = val;
+        document.getElementById('tempo-label').innerText = parseFloat(val).toFixed(2) + 'x';
+    }
+
+    function renderPlaylist() {
+        const list = document.getElementById('playlist-list');
+        list.innerHTML = '';
+        playlist.forEach((item, i) => {
+            const el = document.createElement('div');
+            const isActive = i === currentTrackIndex;
+            const isYT = item.type === 'youtube';
+            const icon = isYT ? '📺' : '🎵 (Local)';
+            el.className = `truncate cursor-pointer transition px-3 py-1.5 rounded-lg text-xs font-medium ${isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800 border border-transparent'}`;
+            el.innerHTML = isActive ? `<span class="animate-pulse mr-1">▶</span> ${icon} ${escapeHTML(item.name)}` : `<span class="opacity-50">${i + 1}.</span> ${icon} ${escapeHTML(item.name)}`;
+            el.onclick = () => playTrack(i);
+            list.appendChild(el);
+        });
+    }
+
+    // --- YOUTUBE LOGIC ---
+    async function searchYouTube() {
+        const query = document.getElementById('yt-search-input').value.trim();
+        if(!query) return;
+        const resContainer = document.getElementById('yt-results-container');
+        resContainer.innerHTML = '<div class="text-xs text-slate-400 p-2 text-center">Searching...</div>';
+        resContainer.classList.remove('hidden');
+        resContainer.classList.add('flex');
+
+        try {
+            // Reverted back to direct Google API call
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`);
+            const data = await res.json();
+            if(data.items && data.items.length > 0) {
+                resContainer.innerHTML = '';
+                data.items.forEach(item => {
+                    const div = document.createElement('div');
+                    const safeTitle = escapeHTML(item.snippet.title).replace(/'/g, "\\'");
+                    div.className = 'flex items-center gap-2 p-1.5 bg-slate-800/80 hover:bg-slate-700 rounded transition text-xs border border-transparent hover:border-slate-600';
+                    
+                    div.innerHTML = `
+                        <button onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', false, event)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[10px] shadow-sm font-bold shrink-0 transition-colors">Add to Mix</button>
+                        <img src="${item.snippet.thumbnails.default.url}" class="w-10 h-7 object-cover rounded cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true)">
+                        <span class="truncate text-slate-200 flex-1 font-medium cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true)">${escapeHTML(item.snippet.title)}</span>
+                    `;
+                    resContainer.appendChild(div);
+                });
+            } else {
+                resContainer.innerHTML = '<div class="text-xs text-slate-400 p-2 text-center">No results found.</div>';
+            }
+        } catch(e) {
+            resContainer.innerHTML = '<div class="text-xs text-red-400 p-2 text-center">Search failed.</div>';
+        }
+    }
+
+    // --- FIREBASE SAVED PLAYLIST ---
+    async function saveYoutubeUrl() {
+        if (!fbDb || !fbUserId) return;
+        const input = document.getElementById('yt-url-input');
+        const url = input.value.trim();
+        if (!url) return;
+
+        const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        if (!match) { 
+            input.value = '';
+            input.placeholder = "Invalid YouTube URL...";
+            setTimeout(() => input.placeholder = "Paste YouTube URL to save to cloud...", 3000);
+            return; 
+        }
+        
+        const videoId = match[1];
+        const oldText = input.value;
+        input.value = "Saving...";
+        input.disabled = true;
+
+        try {
+            let title = "Saved YouTube Track";
+            try {
+                // Reverted back to direct Google API call
+                const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YT_API_KEY}`);
+                const data = await res.json();
+                if(data.items && data.items.length > 0) title = data.items[0].snippet.title;
+            } catch(e) { console.warn("Failed to get title", e); }
+
+            const collectionRef = fbCollection(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls');
+            await fbAddDoc(collectionRef, {
+                videoId: videoId,
+                title: title,
+                timestamp: Date.now()
+            });
+            input.value = '';
+        } catch(e) {
+            console.error("Error saving to Firebase", e);
+            input.value = oldText;
+        } finally {
+            input.disabled = false;
+        }
+    }
+
+    function loadSavedPlaylist() {
+        const collectionRef = fbCollection(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls');
+        fbOnSnapshot(collectionRef, (snapshot) => {
+            const listEl = document.getElementById('cloud-library-list');
+            const containerEl = document.getElementById('cloud-library-container');
+            listEl.innerHTML = '';
+            
+            if (snapshot.empty) {
+                containerEl.classList.add('hidden');
+                containerEl.classList.remove('flex');
+                return;
+            }
+            
+            containerEl.classList.remove('hidden');
+            containerEl.classList.add('flex');
+
+            let tracks = [];
+            snapshot.forEach(doc => { tracks.push({ id: doc.id, ...doc.data() }); });
+            tracks.sort((a,b) => a.timestamp - b.timestamp);
+
+            tracks.forEach(track => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-slate-800/80 p-2 rounded text-xs border border-transparent hover:border-slate-600 transition';
+                const safeTitle = escapeHTML(track.title).replace(/'/g, "\\'");
+                
+                div.innerHTML = `
+                    <div class="truncate text-slate-300 flex-1 font-medium cursor-pointer" onclick="queueYouTubeVideo('${track.videoId}', '${safeTitle}', true, event)">
+                        📺 ${escapeHTML(track.title)}
+                    </div>
+                    <div class="flex gap-2 shrink-0 ml-2">
+                        <button onclick="queueYouTubeVideo('${track.videoId}', '${safeTitle}', false, event)" class="text-indigo-400 hover:text-indigo-300 font-bold px-1 transition" title="Add to Queue">+</button>
+                        <button onclick="window.fbDeleteDoc(window.fbDoc(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls', '${track.id}'))" class="text-red-400 hover:text-red-300 font-bold px-1 transition" title="Delete">×</button>
+                    </div>
+                `;
+                listEl.appendChild(div);
+            });
+        }, (error) => console.error(error));
+    }
+
+    // --- AUDIO MIXER & SYNTH FX (Local DJ Audio Only) ---
+    function updateMixer() {
+        // Reduced to just controlling UI volumes since audioCtx is purely local now
+        const musicVol = document.getElementById('music-vol').value;
+        const micVol = document.getElementById('mic-vol').value;
+
+        document.getElementById('music-vol-label').innerText = `${Math.round(musicVol * 100)}%`;
+        document.getElementById('mic-vol-label').innerText = `${Math.round(micVol * 100)}%`;
+
+        if (djYtPlayer && typeof djYtPlayer.setVolume === 'function') {
+            djYtPlayer.setVolume(Math.min(musicVol * 100, 100));
+        }
+        
+        const djPlayer = document.getElementById('dj-audio-player');
+        if (djPlayer) djPlayer.volume = Math.min(musicVol, 1);
+    }
+
+    function playSynthFX(type) {
+        // Disabled Web Audio API synths in Firebase Sync mode to simplify architecture
+        // A full implementation would pre-render synths as MP3s to play locally.
+        alert("Synths disabled in Firebase Cloud Sync mode.");
+    }
+    
+    function toggleRecording() {
+        alert("Recording unavailable in Cloud Sync mode.");
+    }
+
+    // --- CHAT LOGIC ---
+    function handleChatEnter(e, role) {
+        if (e.key === 'Enter') sendChatMessage(role);
+    }
+
+    async function sendChatMessage(role) {
+        const inputId = role === 'dj' ? 'dj-chat-input' : 'listener-chat-input';
+        const input = document.getElementById(inputId);
+        const text = input.value.trim();
+        if (!text || !myStationId) return;
+
+        input.value = '';
+        
+        try {
+            const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
+            await fbAddDoc(chatRef, {
+                sender: myUsername,
+                text: text,
+                color: myStationColor,
+                timestamp: Date.now()
+            });
+        } catch(e) { console.error("Chat send failed", e); }
+    }
+
+    function renderChatWindow(msgs, role) {
+        const containerId = role === 'dj' ? 'dj-chat-messages' : 'listener-chat-messages';
+        const container = document.getElementById(containerId);
+        container.innerHTML = '<div class="text-slate-500 text-xs text-center italic mt-auto pb-2">Chat room open. Say hi!</div>';
+        
+        msgs.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = 'chat-msg flex flex-col mb-1';
+            
+            const isMe = msg.sender === myUsername;
+            const nameDisplay = isMe ? 'You' : escapeHTML(msg.sender);
+            let nameStyle = isMe ? 'color: #38bdf8;' : `color: ${msg.color || '#10b981'};`; 
+
+            div.innerHTML = `
+                <span style="${nameStyle}" class="font-bold text-[10px] uppercase tracking-wider">${nameDisplay}</span>
+                <span class="text-slate-200">${escapeHTML(msg.text)}</span>
+            `;
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // --- BROADCASTER (DJ) LOGIC ---
+    async function startBroadcaster() {
+        if(!fbDb) { alert("Firebase not initialized yet. Please wait."); return; }
+
+        const nameInput = document.getElementById('station-name-input').value.trim();
+        const userInp = document.getElementById('dj-username-input').value.trim();
+        myStationColor = document.getElementById('station-color-input').value;
+        
+        myStationName = nameInput || `Radio ${Math.floor(100 + Math.random() * 900)}`;
+        myUsername = userInp || "DJ Host";
+        myStationId = 'STN-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+        switchView('dj-view');
+        document.getElementById('dj-station-name').innerText = myStationName;
+        document.getElementById('dj-station-name').style.color = myStationColor;
+        document.getElementById('station-id-display').innerText = myStationId;
+
+        // Create the Room in Firebase
+        currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', myStationId);
+        await fbSetDoc(currentStationRef, {
+            name: myStationName,
+            host: myUsername,
+            color: myStationColor,
+            hype: 0,
+            updatedAt: Date.now(),
+            currentTrack: null
+        });
+
+        isBroadcasting = true;
+
+        // Periodic Sync Loop (Heartbeat)
+        setInterval(() => {
+            if (!isBroadcasting || !currentStationRef) return;
+            
+            let trackData = null;
+            if (playlist.length > 0 && playlist[currentTrackIndex].type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
+                const state = djYtPlayer.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) {
+                     const vidObj = djYtPlayer.getVideoData();
+                     if (vidObj && vidObj.video_id) {
+                         trackData = {
+                             status: 'playing',
+                             title: playlist[currentTrackIndex].name,
+                             videoId: vidObj.video_id,
+                             time: djYtPlayer.getCurrentTime(),
+                             timestamp: Date.now()
+                         };
+                     }
+                }
+            }
+            
+            // Just update timestamp to keep room alive, and time if playing
+            const updateObj = { updatedAt: Date.now() };
+            if (trackData) updateObj.currentTrack = trackData;
+            
+            fbUpdateDoc(currentStationRef, updateObj).catch(e => console.error(e));
+            
+        }, 4000);
+
+        // Listen to Chat
+        const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
+        activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
+            const msgs = [];
+            snapshot.forEach(doc => msgs.push(doc.data()));
+            msgs.sort((a,b) => a.timestamp - b.timestamp);
+            renderChatWindow(msgs, 'dj');
+        });
+        
+        // Listen to Reactions / Hype (since listeners write to the doc directly)
+        activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
+            if(docSnap.exists()) {
+                const data = docSnap.data();
+                globalHypeCount = data.hype || 0;
+                updateHypeUI();
+                
+                if (data.latestReaction && data.latestReaction.ts > Date.now() - 5000) {
+                     if(data.latestReaction.emoji === '🎉') fireConfetti();
+                     else showFloatingEmoji(data.latestReaction.emoji);
+                }
+            }
+        });
+    }
+
+    function toggleMute() {
+        alert("Mic disabled in Firebase Sync mode.");
+    }
+
+    function toggleDeafen() {
+        alert("Monitor deafen disabled in Firebase Sync mode.");
+    }
+
+    function endBroadcast() {
+        if(currentStationRef) {
+            window.fbDeleteDoc(currentStationRef).finally(() => location.reload());
+        } else {
+            location.reload();
+        }
+    }
+
+    // --- LISTENER LOGIC ---
+    function startListenerManual() {
+        let stationId = document.getElementById('join-id-input').value.trim().toUpperCase();
+        if (stationId) startListener(stationId, "Private Station", "#06b6d4");
+    }
+
+    async function startListener(stationId, stationName, themeColor) {
+        if(!fbDb) { alert("Firebase not initialized yet. Please wait."); return; }
+
+        const userInp = document.getElementById('dj-username-input').value.trim();
+        myUsername = userInp || "Listener_" + Math.floor(Math.random() * 1000);
+        myStationColor = themeColor; 
+        myStationId = stationId;
+
+        switchView('listener-view');
+        document.getElementById('listener-station-display').innerText = stationName;
+        applyThemeColorToListener(themeColor);
+
+        // Initialize Listener YouTube Player
+        function initRobustYTPlayer() {
+            if (!isYtApiReady) {
+                setTimeout(initRobustYTPlayer, 500); 
+                return;
+            }
+            if (!listenerYtPlayer || typeof listenerYtPlayer.loadVideoById !== 'function') {
+                try {
+                    listenerYtPlayer = new YT.Player('yt-player-listener', {
+                        height: '10', width: '10',
+                        playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1 },
+                        events: { 
+                            'onReady': (e) => { 
+                                e.target.mute(); 
+                                if (window.queuedYtCmd) {
+                                    e.target.unMute();
+                                    e.target.setVolume(document.getElementById('listener-vol-slider').value * 100);
+                                    e.target.loadVideoById(window.queuedYtCmd.videoId, window.queuedYtCmd.time || 0);
+                                    window.queuedYtCmd = null;
+                                }
+                            }
+                        }
+                    });
+                } catch(err) { console.error("YT Boot Failed", err); }
+            }
+        }
+        initRobustYTPlayer();
+
+        // Subscribe to Station Document
+        currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', stationId);
+        
+        activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
+            if (!docSnap.exists()) {
+                setListenerStateOff();
+                return;
+            }
+            const data = docSnap.data();
+            
+            setListenerStateLive();
+            
+            // Sync Hype & Reactions
+            globalHypeCount = data.hype || 0;
+            updateHypeUI();
+            
+            if (data.latestReaction && data.latestReaction.ts > Date.now() - 5000) {
+                 if(data.latestReaction.emoji === '🎉') fireConfetti();
+                 else showFloatingEmoji(data.latestReaction.emoji);
+            }
+            
+            // Sync YouTube
+            if (data.currentTrack) {
+                document.getElementById('now-playing-container').classList.remove('hidden');
+                document.getElementById('now-playing-text').innerText = data.currentTrack.title + (data.currentTrack.status === 'local' ? ' (Host Local File)' : '');
+                
+                if (data.currentTrack.status === 'local') {
+                    if (listenerYtPlayer && typeof listenerYtPlayer.pauseVideo === 'function') listenerYtPlayer.pauseVideo();
+                } else {
+                    syncListenerYT(data.currentTrack);
+                }
+            }
+        });
+
+        // Subscribe to Chat
+        const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + stationId);
+        activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
+            const msgs = [];
+            snapshot.forEach(doc => msgs.push(doc.data()));
+            msgs.sort((a,b) => a.timestamp - b.timestamp);
+            renderChatWindow(msgs, 'listener');
+        });
+        
+        // Announce join
+        sendChatMessage('listener'); 
+    }
+    
+    function syncListenerYT(trackCmd) {
+        if(!listenerYtPlayer || typeof listenerYtPlayer.loadVideoById !== 'function') {
+            window.queuedYtCmd = trackCmd;
+            return;
+        }
+        
+        try {
+            const currentData = listenerYtPlayer.getVideoData ? listenerYtPlayer.getVideoData() : {};
+            
+            if (trackCmd.status === 'playing') {
+                if(typeof listenerYtPlayer.unMute === 'function') listenerYtPlayer.unMute();
+                if(typeof listenerYtPlayer.setVolume === 'function') listenerYtPlayer.setVolume(document.getElementById('listener-vol-slider').value * 100);
+
+                if (currentData.video_id !== trackCmd.videoId) {
+                     listenerYtPlayer.loadVideoById(trackCmd.videoId, trackCmd.time || 0);
+                     
+                     // Force playback if browser stalls
+                     setTimeout(() => {
+                         if(listenerYtPlayer && typeof listenerYtPlayer.getPlayerState === 'function') {
+                             const state = listenerYtPlayer.getPlayerState();
+                             if(state === YT.PlayerState.UNSTARTED || state === YT.PlayerState.CUED) {
+                                 listenerYtPlayer.playVideo();
+                             }
+                         }
+                     }, 1500);
+                } else {
+                     if (listenerYtPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+                         listenerYtPlayer.playVideo();
+                     }
+                     
+                     if(trackCmd.time !== undefined && typeof listenerYtPlayer.getCurrentTime === 'function') {
+                         // Calculate expected time based on when the DJ sent the heartbeat vs now
+                         const latencyAdj = (Date.now() - trackCmd.timestamp) / 1000;
+                         const expectedTime = trackCmd.time + (latencyAdj > 0 && latencyAdj < 10 ? latencyAdj : 0);
+                         
+                         const current = listenerYtPlayer.getCurrentTime();
+                         const diff = current - expectedTime;
+                         
+                         // Check if out of sync by more than 4 seconds
+                         if(Math.abs(diff) > 4) {
+                             if (!(trackCmd.time < 2 && current > 10)) { // Ad protection
+                                 listenerYtPlayer.seekTo(expectedTime);
+                             }
+                         }
+                     }
+                }
+            } else if (trackCmd.status === 'paused') {
+                if(typeof listenerYtPlayer.pauseVideo === 'function') {
+                    listenerYtPlayer.pauseVideo();
+                }
+            }
+        } catch(e) { console.warn("YT Sync Error", e); }
+    }
+
+    function applyThemeColorToListener(hexColor) {
+        myStationColor = hexColor;
+        document.getElementById('listener-glow-1').style.backgroundColor = hexColor;
+        document.getElementById('listener-glow-2').style.backgroundColor = hexColor; 
+        document.getElementById('listener-send-btn').style.backgroundColor = hexColor;
+    }
+
+    function toggleListenerDeafen() {
+        if(listenerYtPlayer && typeof listenerYtPlayer.isMuted === 'function') {
+            const isMuted = listenerYtPlayer.isMuted();
+            if (isMuted) listenerYtPlayer.unMute();
+            else listenerYtPlayer.mute();
+            
+            const btn = document.getElementById('listener-deafen-btn');
+            const icon = document.getElementById('listener-vol-icon');
+            const slider = document.getElementById('listener-vol-slider');
+
+            if (!isMuted) {
+                btn.classList.add('bg-orange-900/40', 'border-orange-500/50', 'text-orange-400');
+                btn.classList.remove('bg-slate-800', 'border-slate-600', 'text-white');
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 011.414 0L10 14.586H8.414l-1.414-1.414-4.707 4.707A1 1 0 011 17v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" />`;
+                slider.style.opacity = '0.5';
+            } else {
+                btn.classList.remove('bg-orange-900/40', 'border-orange-500/50', 'text-orange-400');
+                btn.classList.add('bg-slate-800', 'border-slate-600', 'text-white');
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />`;
+                slider.style.opacity = '1';
+            }
+        }
+    }
+
+    function updateListenerVolume() {
+        const val = document.getElementById('listener-vol-slider').value;
+        if (listenerYtPlayer && typeof listenerYtPlayer.setVolume === 'function') {
+            listenerYtPlayer.setVolume(val * 100);
+            if(val > 0 && listenerYtPlayer.isMuted()) toggleListenerDeafen();
+        }
+    }
+
+    function setListenerStateLive() {
+        document.getElementById('listener-status-text').innerText = "Firebase Sync Active";
+        document.getElementById('listener-status-text').style.color = myStationColor;
+        document.getElementById('buffer-bar').classList.add('hidden');
+        document.getElementById('reactions-bar').classList.remove('hidden');
+        document.getElementById('listener-chat-container').classList.remove('hidden');
+        
+        const iconContainer = document.getElementById('listener-status-icon');
+        iconContainer.classList.replace('bg-slate-800', 'bg-slate-900');
+        iconContainer.style.borderColor = myStationColor;
+        
+        const hex = myStationColor.replace('#','');
+        const rgba = `rgba(${parseInt(hex.substring(0,2), 16)},${parseInt(hex.substring(2,4), 16)},${parseInt(hex.substring(4,6), 16)},0.7)`;
+        
+        iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 pulse-ring rounded-full" style="color: ${myStationColor}; box-shadow: 0 0 0 0 ${rgba}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" /></svg>`;
+    }
+
+    function setListenerStateOff() {
+        document.getElementById('buffer-bar').classList.add('hidden');
+        document.getElementById('reactions-bar').classList.add('hidden');
+        document.getElementById('listener-chat-container').classList.add('hidden');
+        document.getElementById('now-playing-container').classList.add('hidden');
+        const iconContainer = document.getElementById('listener-status-icon');
+        iconContainer.style.borderColor = '#334155'; 
+        iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 011.414 0L10 14.586H8.414l-1.414-1.414-4.707 4.707A1 1 0 011 17v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" /></svg>`;
+    }
+
+    // --- EMOJIS / REACTIONS / CONFETTI ---
+    async function sendReaction(emoji) {
+        if(emoji === '🎉') fireConfetti();
+        else showFloatingEmoji(emoji);
+        
+        if (emoji === '💖') {
+            globalHypeCount++;
+            updateHypeUI();
+        }
+
+        if (currentStationRef) {
+            const updateData = { latestReaction: { emoji: emoji, ts: Date.now() } };
+            if (emoji === '💖') updateData.hype = globalHypeCount;
+            fbUpdateDoc(currentStationRef, updateData).catch(e => console.error(e));
+        }
+    }
+
+    function showFloatingEmoji(emoji) {
+        const el = document.createElement('div');
+        el.className = 'floating-emoji';
+        el.innerText = emoji;
+        el.style.left = `${Math.random() * 80 + 10}%`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+    }
+    
+    function triggerConfettiSync() {
+        sendReaction('🎉'); // Re-using reaction pipeline for host confetti
+    }
+
+    function fireConfetti() {
+        const colors = ['#10b981', '#06b6d4', '#ec4899', '#f59e0b', '#8b5cf6', '#ffffff'];
+        for(let i=0; i<60; i++) {
+            let conf = document.createElement('div');
+            conf.className = 'confetti-piece';
+            
+            const w = Math.random() * 8 + 4;
+            const h = Math.random() > 0.5 ? w : w * 2;
+            conf.style.width = `${w}px`;
+            conf.style.height = `${h}px`;
+            conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            conf.style.left = '50vw';
+            conf.style.top = '-5vh';
+            
+            const tx = (Math.random() - 0.5) * 100; 
+            const ty = 110; 
+            const r = Math.random() * 1000 - 500; 
+            
+            conf.style.transition = `transform ${Math.random() * 1.5 + 2}s cubic-bezier(.37,0,.63,1), opacity 3s`;
+            
+            document.body.appendChild(conf);
+            
+            requestAnimationFrame(() => {
+                conf.style.transform = `translate(${tx}vw, ${ty}vh) rotate(${r}deg)`;
+                setTimeout(() => conf.style.opacity = '0', 1500); 
+            });
+            
+            setTimeout(() => conf.remove(), 4000);
+        }
+    }
+
+    // App starts by initializing Firebase directly with your configuration
+    window.onload = initFirebaseAndApp;
+</script>
+</body>
+</html>
