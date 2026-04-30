@@ -445,11 +445,12 @@
             <p id="listener-status-text" class="text-slate-400 font-medium">Syncing via Firebase...</p>
             
             <!-- Now Playing Marquee -->
-            <div id="now-playing-container" class="mt-4 bg-slate-950/50 border border-slate-800 rounded-full py-1.5 px-4 hidden flex items-center gap-2 max-w-[80%] mx-auto">
+            <div id="now-playing-container" class="mt-4 bg-slate-950/50 border border-slate-800 rounded-full py-1.5 px-3 hidden flex items-center gap-2 max-w-[95%] mx-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white shrink-0 animate-pulse" viewBox="0 0 20 20" fill="currentColor"><path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" /></svg>
                 <div class="marquee-container w-full text-xs text-white/80 font-medium">
                     <span id="now-playing-text" class="marquee-text">Waiting for DJ...</span>
                 </div>
+                <button id="listener-save-track-btn" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-full text-[10px] font-bold transition-colors shrink-0 shadow-md" onclick="saveCurrentListenerTrack(event)">Save ☁️</button>
             </div>
             
             <div class="relative w-32 h-32 mx-auto mt-6 mb-6 flex items-center justify-center">
@@ -526,6 +527,7 @@
     let playlist = [];
     let currentTrackIndex = 0;
     let isLooping = false;
+    let currentListenerTrack = null;
 
     // --- API STATE ---
     const YT_API_KEY = "AIzaSyBFTCtKzfMfpaj3aFjFPLbaysw5atwy_LA"; // Hardcoded default key
@@ -581,18 +583,26 @@
             window.fbDeleteDoc = deleteDoc; 
 
             // RULE 3: Auth First
-            await signInAnonymously(fbAuth);
+            try {
+                await signInAnonymously(fbAuth);
+            } catch(authErr) {
+                console.error("Auth Error:", authErr);
+                document.getElementById('dashboard-status').innerText = "❌ Go to Firebase Console -> Authentication -> Enable 'Anonymous'";
+                return;
+            }
 
             onAuthStateChanged(fbAuth, (user) => {
                 if (user) {
                     fbUserId = user.uid;
                     initDashboard();
                     loadSavedPlaylist();
+                    loadTotalHearts();
+                    loadUserProfile();
                 }
             });
         } catch (error) {
             console.error("Firebase init failed:", error);
-            document.getElementById('dashboard-status').innerText = "Database Connection Failed.";
+            document.getElementById('dashboard-status').innerText = "❌ Database Connection Failed. Check console.";
         }
     }
 
@@ -655,7 +665,10 @@
                 `;
                 list.appendChild(div);
             });
-        }, (error) => console.error("Dashboard error:", error));
+        }, (error) => {
+            console.error("Dashboard error:", error);
+            dashboardStatus.innerText = "❌ Go to Firebase Console -> Firestore -> Rules -> Set to 'allow read, write: if true;'";
+        });
     }
 
     // --- UI HELPERS ---
@@ -861,9 +874,12 @@
                     div.className = 'flex items-center gap-2 p-1.5 bg-slate-800/80 hover:bg-slate-700 rounded transition text-xs border border-transparent hover:border-slate-600';
                     
                     div.innerHTML = `
-                        <button onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', false, event)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[10px] shadow-sm font-bold shrink-0 transition-colors">Add to Mix</button>
-                        <img src="${item.snippet.thumbnails.default.url}" class="w-10 h-7 object-cover rounded cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true)">
-                        <span class="truncate text-slate-200 flex-1 font-medium cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true)">${escapeHTML(item.snippet.title)}</span>
+                        <div class="flex flex-col gap-1 shrink-0 w-16">
+                            <button onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', false, event)" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1 rounded text-[9px] shadow-sm font-bold transition-colors w-full">Queue</button>
+                            <button onclick="saveVideoToCloud('${item.id.videoId}', '${safeTitle}', event)" class="bg-emerald-600 hover:bg-emerald-500 text-white py-1 rounded text-[9px] shadow-sm font-bold transition-colors w-full">Save ☁️</button>
+                        </div>
+                        <img src="${item.snippet.thumbnails.default.url}" class="w-10 h-7 object-cover rounded cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true, event)">
+                        <span class="truncate text-slate-200 flex-1 font-medium cursor-pointer" onclick="queueYouTubeVideo('${item.id.videoId}', '${safeTitle}', true, event)">${escapeHTML(item.snippet.title)}</span>
                     `;
                     resContainer.appendChild(div);
                 });
@@ -876,6 +892,99 @@
     }
 
     // --- FIREBASE SAVED PLAYLIST ---
+    async function loadTotalHearts() {
+        if (!fbDb || !fbUserId) return;
+        try {
+            const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'dj_profiles', fbUserId);
+            window.fbOnSnapshot(profileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    globalHypeCount = docSnap.data().totalHearts || 0;
+                    updateHypeUI();
+                } else {
+                    // Create empty profile on first load
+                    window.fbSetDoc(profileRef, { totalHearts: 0 });
+                }
+            });
+        } catch(e) { console.error("Error loading hearts", e); }
+    }
+
+    async function loadUserProfile() {
+        if (!fbDb || !fbUserId) return;
+        try {
+            const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'profile');
+            window.fbOnSnapshot(profileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.username && !document.getElementById('dj-username-input').value) {
+                        document.getElementById('dj-username-input').value = data.username;
+                    }
+                    if (data.color) {
+                        document.getElementById('station-color-input').value = data.color;
+                    }
+                }
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    async function saveUserProfile(username, color) {
+        if (!fbDb || !fbUserId) return;
+        try {
+            const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'profile');
+            await window.fbSetDoc(profileRef, { username, color }, { merge: true });
+        } catch(e) {}
+    }
+
+    function saveCurrentListenerTrack(event) {
+        if (currentListenerTrack && currentListenerTrack.videoId) {
+            saveVideoToCloud(currentListenerTrack.videoId, currentListenerTrack.title, event);
+        }
+    }
+
+    async function saveVideoToCloud(videoId, title, event) {
+        if (event) event.stopPropagation();
+        if (!fbDb || !fbUserId) {
+            alert("Firebase not connected or user not authenticated.");
+            return;
+        }
+        
+        const btn = event ? event.currentTarget : null;
+        if (btn) {
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+        }
+
+        try {
+            const collectionRef = fbCollection(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls');
+            await fbAddDoc(collectionRef, {
+                videoId: videoId,
+                title: title,
+                timestamp: Date.now()
+            });
+            
+            if (btn) {
+                btn.innerText = "Saved!";
+                if (btn.classList.contains('bg-emerald-600')) btn.classList.replace('bg-emerald-600', 'bg-emerald-500');
+                if (btn.classList.contains('bg-indigo-600')) btn.classList.replace('bg-indigo-600', 'bg-indigo-500');
+                
+                setTimeout(() => {
+                    btn.innerText = "Save ☁️";
+                    if (btn.classList.contains('bg-emerald-500')) btn.classList.replace('bg-emerald-500', 'bg-emerald-600');
+                    if (btn.classList.contains('bg-indigo-500')) btn.classList.replace('bg-indigo-500', 'bg-indigo-600');
+                    btn.disabled = false;
+                }, 2000);
+            }
+        } catch(e) {
+            console.error("Error saving to Firebase", e);
+            if (btn) {
+                btn.innerText = "Error";
+                setTimeout(() => {
+                    btn.innerText = "Save ☁️";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+    }
+
     async function saveYoutubeUrl() {
         if (!fbDb || !fbUserId) return;
         const input = document.getElementById('yt-url-input');
@@ -1043,18 +1152,20 @@
         myUsername = userInp || "DJ Host";
         myStationId = 'STN-' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
+        saveUserProfile(myUsername, myStationColor);
+
         switchView('dj-view');
         document.getElementById('dj-station-name').innerText = myStationName;
         document.getElementById('dj-station-name').style.color = myStationColor;
         document.getElementById('station-id-display').innerText = myStationId;
 
-        // Create the Room in Firebase
+        // Create the Room in Firebase with the DJ's lifetime hearts
         currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', myStationId);
         await fbSetDoc(currentStationRef, {
             name: myStationName,
             host: myUsername,
             color: myStationColor,
-            hype: 0,
+            hype: globalHypeCount,
             updatedAt: Date.now(),
             currentTrack: null
         });
@@ -1103,7 +1214,15 @@
         activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
             if(docSnap.exists()) {
                 const data = docSnap.data();
-                globalHypeCount = data.hype || 0;
+                
+                // If listeners increased the hype, save it to the DJ's permanent profile
+                if (data.hype > globalHypeCount) {
+                    globalHypeCount = data.hype;
+                    const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'dj_profiles', fbUserId);
+                    window.fbUpdateDoc(profileRef, { totalHearts: globalHypeCount }).catch(e => console.error(e));
+                }
+                
+                globalHypeCount = data.hype || globalHypeCount;
                 updateHypeUI();
                 
                 if (data.latestReaction && data.latestReaction.ts > Date.now() - 5000) {
@@ -1143,6 +1262,8 @@
         myUsername = userInp || "Listener_" + Math.floor(Math.random() * 1000);
         myStationColor = themeColor; 
         myStationId = stationId;
+
+        saveUserProfile(myUsername, document.getElementById('station-color-input').value);
 
         switchView('listener-view');
         document.getElementById('listener-station-display').innerText = stationName;
@@ -1202,6 +1323,14 @@
                 document.getElementById('now-playing-container').classList.remove('hidden');
                 document.getElementById('now-playing-text').innerText = data.currentTrack.title + (data.currentTrack.status === 'local' ? ' (Host Local File)' : '');
                 
+                if (data.currentTrack.status !== 'local' && data.currentTrack.videoId) {
+                    currentListenerTrack = data.currentTrack;
+                    document.getElementById('listener-save-track-btn').classList.remove('hidden');
+                } else {
+                    currentListenerTrack = null;
+                    document.getElementById('listener-save-track-btn').classList.add('hidden');
+                }
+
                 if (data.currentTrack.status === 'local') {
                     if (listenerYtPlayer && typeof listenerYtPlayer.pauseVideo === 'function') listenerYtPlayer.pauseVideo();
                 } else {
