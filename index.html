@@ -60,10 +60,10 @@
         .floating-emoji {
             position: fixed;
             bottom: -50px;
-            font-size: 2rem;
+            font-size: 3.5rem; /* Increased size! */
             pointer-events: none;
             animation: floatUp 4s ease-in forwards;
-            z-index: 50;
+            z-index: 99999; /* Forced to the very top */
             filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
         }
         @keyframes floatUp {
@@ -76,7 +76,7 @@
         .confetti-piece {
             position: fixed;
             pointer-events: none;
-            z-index: 100;
+            z-index: 99999; /* Forced to the very top */
         }
 
         .vinyl-spin { animation: spin 4s linear infinite; }
@@ -89,8 +89,6 @@
 
         .chat-msg { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .recording-pulse { animation: recPulse 1.5s infinite; }
-        @keyframes recPulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
         
         /* FX Toggles */
         .fx-radio:checked + div { background: #10b981; border-color: #059669; color: white; }
@@ -114,10 +112,39 @@
         </div>
 
         <div class="space-y-6 relative z-10">
-            <!-- Immediately visible since we no longer need to wait for a backend -->
             <div id="main-setup-content" class="space-y-6">
-                <div class="space-y-3">
-                    <input type="text" id="station-name-input" placeholder="Station Name (e.g. Synthwave Mix)" class="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder-slate-600 transition">
+                
+                <!-- Google Auth Section -->
+                <div id="auth-section" class="mb-4 text-center">
+                    <button id="google-login-btn" onclick="signInWithGoogle()" class="w-full bg-white text-slate-900 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 hover:bg-slate-200 transition shadow-lg">
+                        <svg class="w-5 h-5" viewBox="0 0 48 48">
+                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                        </svg>
+                        Sign in with Google to Host
+                    </button>
+                    <div id="user-info-display" class="hidden flex-col items-center gap-2 bg-slate-950/40 p-4 rounded-xl border border-emerald-500/30">
+                        <img id="user-avatar" src="" class="w-12 h-12 rounded-full border-2 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                        <span id="user-greeting" class="text-emerald-400 font-bold text-sm"></span>
+                        <button onclick="signOutGoogle()" class="text-[10px] text-slate-400 hover:text-white underline transition">Sign out</button>
+                    </div>
+                </div>
+
+                <!-- My Stations Section -->
+                <div id="my-stations-container" class="hidden">
+                    <div class="relative flex py-2 items-center mb-2">
+                        <div class="flex-grow border-t border-slate-700"></div>
+                        <span class="flex-shrink-0 mx-4 text-emerald-400/80 text-xs font-bold tracking-widest uppercase">My Stations</span>
+                        <div class="flex-grow border-t border-slate-700"></div>
+                    </div>
+                    <div id="my-stations-list" class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar"></div>
+                </div>
+
+                <!-- Setup Form Section (Create New) -->
+                <div id="setup-form-container" class="space-y-3 pt-2">
+                    <input type="text" id="station-name-input" placeholder="New Station Name (e.g. Lofi Mix)" class="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder-slate-600 transition">
                     <div class="flex gap-2">
                         <input type="text" id="dj-username-input" placeholder="Your DJ Name" class="flex-1 bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium placeholder-slate-600 transition">
                         <div class="relative group" title="Station Theme Color">
@@ -130,13 +157,14 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-lg text-emerald-50 transition">Start Broadcasting</h3>
-                            <p class="text-emerald-200/60 text-xs">Mix mic, music, effects, and chat.</p>
+                            <h3 class="font-bold text-lg text-emerald-50 transition">Create New Station</h3>
+                            <p class="text-emerald-200/60 text-xs">Start a brand new broadcast room.</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="relative flex py-2 items-center">
+                <!-- Live Stations Section -->
+                <div class="relative flex py-2 items-center mt-4">
                     <div class="flex-grow border-t border-slate-700"></div>
                     <span class="flex-shrink-0 mx-4 text-cyan-500/50 text-xs font-bold tracking-widest uppercase">Live Stations</span>
                     <div class="flex-grow border-t border-slate-700"></div>
@@ -190,7 +218,7 @@
                     <span id="record-dot" class="h-2 w-2 rounded-full bg-slate-500"></span>
                     <span id="record-text">RECORD</span>
                 </button>
-                <button onclick="endBroadcast()" class="text-xs bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 px-4 py-2 rounded-full transition font-bold">END STREAM</button>
+                <button onclick="endBroadcast()" class="text-xs bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 px-4 py-2 rounded-full transition font-bold">DASHBOARD</button>
                 <div class="bg-cyan-950/40 px-5 py-2 rounded-full border border-cyan-900/50 flex items-center gap-3">
                     <span class="text-cyan-400 text-xs font-bold uppercase tracking-wider">Listeners</span>
                     <div class="bg-cyan-500/20 px-3 py-1 rounded-full">
@@ -230,9 +258,9 @@
                         </div>
                     </div>
 
-                    <!-- Moved Controls & Playlist UP for better visibility -->
                     <div class="flex justify-between items-center mb-3 z-10">
                         <div class="flex gap-2">
+                            <button onclick="playNextTrack()" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition shadow-sm" title="Skip to Next">⏭ Skip</button>
                             <button onclick="toggleLoop()" id="btn-loop" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔁 Loop</button>
                             <button onclick="shufflePlaylist()" id="btn-shuffle" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔀 Shuffle</button>
                         </div>
@@ -280,7 +308,7 @@
                         <div id="yt-player-dj" class="w-full h-full"></div>
                     </div>
 
-                    <audio id="dj-audio-player" controls class="w-full h-10 mt-auto z-10 outline-none rounded-lg" onplay="onDJPlay()" onpause="document.getElementById('vinyl-icon').classList.add('vinyl-paused')"></audio>
+                    <audio id="dj-audio-player" controls class="w-full h-10 mt-auto z-10 outline-none rounded-lg" onplay="onDJPlay()" onpause="document.getElementById('vinyl-icon').classList.add('vinyl-paused')" onended="playNextTrack()"></audio>
                 </div>
 
                 <!-- Live Chat -->
@@ -429,9 +457,9 @@
 
     <!-- VIEW: LISTENER -->
     <div id="listener-view" class="hidden w-full max-w-lg bg-slate-900/80 backdrop-blur-xl border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-auto md:max-h-[90vh] transition-colors duration-1000">
-        <!-- Thematic Background Glow (Set dynamically) -->
-        <div id="listener-glow-1" class="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-30 transition-colors duration-1000"></div>
-        <div id="listener-glow-2" class="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-20 transition-colors duration-1000"></div>
+        <!-- Thematic Background Glow -->
+        <div id="listener-glow-1" class="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-30 transition-colors duration-1000 pointer-events-none"></div>
+        <div id="listener-glow-2" class="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[60px] opacity-20 transition-colors duration-1000 pointer-events-none"></div>
 
         <!-- Top Info -->
         <div class="p-8 pb-4 text-center relative shrink-0 z-10">
@@ -491,20 +519,22 @@
                 <button onclick="sendReaction('🎵')" class="text-2xl hover:scale-125 transition transform hover:-translate-y-2 bg-slate-800 w-12 h-12 rounded-full border border-slate-700 shadow-lg">🎵</button>
             </div>
 
-            <!-- Hidden YouTube Player for Listeners -->
-            <div id="yt-player-listener" class="hidden"></div>
-            
             <!-- Volume & Disconnect -->
             <div class="flex items-center gap-3">
                 <button id="listener-deafen-btn" onclick="toggleListenerDeafen()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white p-3 rounded-xl transition shadow-md">
                     <svg id="listener-vol-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
                 </button>
                 <input type="range" id="listener-vol-slider" class="flex-1 text-slate-300" min="0" max="1" step="0.05" value="1" oninput="updateListenerVolume()">
-                <button onclick="location.reload()" class="bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 font-bold py-3 px-6 rounded-xl transition shadow-md ml-2">
+                <button onclick="leaveStation()" class="bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-400 font-bold py-3 px-6 rounded-xl transition shadow-md ml-2">
                     LEAVE
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Hidden YouTube Player for Listeners: Moved to the very end of body to prevent browser autoplay blocking -->
+    <div class="absolute -top-[1000px] -left-[1000px] w-[300px] h-[300px] opacity-[0.01] pointer-events-none z-[-1]">
+        <div id="yt-player-listener"></div>
     </div>
 
 <script>
@@ -512,11 +542,9 @@
     let myUsername = "Anonymous";
     let globalHypeCount = 0;
     
-    // Audio Nodes (Local DJ only now)
-    let audioCtx = null;
-    let masterCompressor = null; 
-    let isMicMuted = false;
-    let isDeafened = false; 
+    // Bulletproof Emoji Tracker (Fixes Clock Skew)
+    let lastReactionId = null;
+    let isFirstReactionSync = true;
     
     let isBroadcasting = false;
     let myStationId = null;
@@ -530,26 +558,31 @@
     let currentListenerTrack = null;
 
     // --- API STATE ---
-    const YT_API_KEY = "AIzaSyBFTCtKzfMfpaj3aFjFPLbaysw5atwy_LA"; // Hardcoded default key
+    const YT_API_KEY = "AIzaSyBFTCtKzfMfpaj3aFjFPLbaysw5atwy_LA"; 
     let djYtPlayer = null;
     let listenerYtPlayer = null;
     let isYtApiReady = false;
     let djYtEndTimeout = null; 
 
+    // New state for Audio Unlocking
+    window.audioUnlocked = false;
+    window.lastTrackCmd = null;
+
     function onYouTubeIframeAPIReady() {
         isYtApiReady = true;
     }
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady; 
 
     // --- FIREBASE CORE LOGIC ---
     let fbDb, fbAuth, fbAppId, fbUserId;
     let currentStationRef = null;
     let activeChatUnsubscribe = null;
     let activeStationUnsubscribe = null;
+    let googleProvider = null; 
 
-    // We must expose these so our sync logic can use them
-    let fbDoc, fbSetDoc, fbUpdateDoc, fbCollection, fbOnSnapshot, fbAddDoc;
+    // Expose for sync logic
+    let fbDoc, fbSetDoc, fbUpdateDoc, fbCollection, fbOnSnapshot, fbAddDoc, fbGetDocs;
 
-    // Your direct Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyC6fcHsdtBCHLWDLKm9yIJokgeoll0i7c0",
       authDomain: "os-chat-and-phone.firebaseapp.com",
@@ -564,42 +597,83 @@
     async function initFirebaseAndApp() {
         try {
             const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-            const { getAuth, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
-            const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+            const { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+            const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
             fbAppId = firebaseConfig.projectId;
 
             const app = initializeApp(firebaseConfig);
             fbAuth = getAuth(app);
             fbDb = getFirestore(app);
+            
+            googleProvider = new GoogleAuthProvider();
+            window.signOutAuth = signOut;
 
             // Export to global for helper functions
-            fbDoc = doc;
-            fbSetDoc = setDoc;
-            fbUpdateDoc = updateDoc;
-            fbCollection = collection;
-            fbOnSnapshot = onSnapshot;
-            fbAddDoc = addDoc;
+            fbDoc = window.fbDoc = doc;
+            fbSetDoc = window.fbSetDoc = setDoc;
+            fbUpdateDoc = window.fbUpdateDoc = updateDoc;
+            fbCollection = window.fbCollection = collection;
+            fbOnSnapshot = window.fbOnSnapshot = onSnapshot;
+            fbAddDoc = window.fbAddDoc = addDoc;
+            fbGetDocs = window.fbGetDocs = getDocs;
             window.fbDeleteDoc = deleteDoc; 
+            window.fbArrayUnion = arrayUnion;
+            window.fbArrayRemove = arrayRemove;
+            window.fbGetDoc = getDoc;
 
-            // RULE 3: Auth First
-            try {
-                await signInAnonymously(fbAuth);
-            } catch(authErr) {
-                console.error("Auth Error:", authErr);
-                document.getElementById('dashboard-status').innerText = "❌ Go to Firebase Console -> Authentication -> Enable 'Anonymous'";
-                return;
-            }
+            // Adding global sign in functions
+            window.signInWithGoogle = async () => {
+                const btn = document.getElementById('google-login-btn');
+                const origHtml = btn.innerHTML;
+                btn.innerHTML = 'Signing in...';
+                try {
+                    await signInWithPopup(fbAuth, googleProvider);
+                } catch(e) {
+                    console.error(e);
+                    alert("Google Sign-In failed.");
+                    btn.innerHTML = origHtml;
+                }
+            };
 
-            onAuthStateChanged(fbAuth, (user) => {
+            window.signOutGoogle = async () => {
+                try { await window.signOutAuth(fbAuth); } catch(e) {}
+            };
+
+            onAuthStateChanged(fbAuth, async (user) => {
                 if (user) {
                     fbUserId = user.uid;
+                    
+                    // Display Auth UI
+                    if (!user.isAnonymous) {
+                        document.getElementById('google-login-btn').classList.add('hidden');
+                        document.getElementById('user-info-display').classList.remove('hidden');
+                        document.getElementById('user-info-display').classList.add('flex');
+                        document.getElementById('user-avatar').src = user.photoURL || 'https://via.placeholder.com/150';
+                        document.getElementById('user-greeting').innerText = `Welcome back, ${user.displayName || 'DJ'}!`;
+                        if(!document.getElementById('dj-username-input').value) {
+                             document.getElementById('dj-username-input').value = user.displayName || '';
+                        }
+                    } else {
+                        document.getElementById('google-login-btn').classList.remove('hidden');
+                        document.getElementById('user-info-display').classList.add('hidden');
+                        document.getElementById('user-info-display').classList.remove('flex');
+                    }
+
                     initDashboard();
                     loadSavedPlaylist();
                     loadTotalHearts();
                     loadUserProfile();
+                } else {
+                    try { await signInAnonymously(fbAuth); } catch(e) {}
                 }
             });
+            
+            // Kickstart Auth pipeline
+            if(!fbAuth.currentUser) {
+                signInAnonymously(fbAuth).catch(e => console.error(e));
+            }
+            
         } catch (error) {
             console.error("Firebase init failed:", error);
             document.getElementById('dashboard-status').innerText = "❌ Database Connection Failed. Check console.";
@@ -616,20 +690,65 @@
             dashboardStatus.parentElement.querySelector('div').classList.replace('border-cyan-500', 'border-emerald-500');
             dashboardStatus.parentElement.querySelector('div').classList.remove('animate-spin');
             
-            const list = document.getElementById('stations-list');
-            list.innerHTML = '';
+            const liveList = document.getElementById('stations-list');
+            const myList = document.getElementById('my-stations-list');
+            const myContainer = document.getElementById('my-stations-container');
+            
+            liveList.innerHTML = '';
+            myList.innerHTML = '';
             
             let activeStations = [];
+            let myStations = [];
+            
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // Filter out stations inactive for > 2 hours
-                if (Date.now() - data.updatedAt < 2 * 60 * 60 * 1000) {
+                
+                // If I am logged in and I own this station, it ALWAYS shows in My Stations (even offline)
+                if (fbUserId && data.hostUid === fbUserId) {
+                    myStations.push({ id: doc.id, ...data });
+                } else if (Date.now() - data.updatedAt < 2 * 60 * 60 * 1000) {
+                    // Otherwise, if it's active in the last 2 hours, show it in Live Stations
                     activeStations.push({ id: doc.id, ...data });
                 }
             });
 
+            // --- Render My Stations (The Studio Hub) ---
+            if (myStations.length > 0) {
+                myContainer.classList.remove('hidden');
+                myStations.forEach(data => {
+                    const div = document.createElement('div');
+                    const stationColor = data.color || '#10b981';
+                    div.className = 'bg-slate-900/80 p-3 rounded-xl border border-slate-700 transition flex flex-col gap-2 shadow-sm';
+                    
+                    div.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-3 h-3 rounded-full" style="background-color: ${stationColor}; box-shadow: 0 0 8px ${stationColor}"></div>
+                            <div class="flex-1 overflow-hidden">
+                                <h4 class="text-white font-bold truncate transition" style="color: ${stationColor}">${escapeHTML(data.name)}</h4>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">${data.activeListeners ? data.activeListeners.length : 0} Listeners</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-1">
+                            <button class="flex-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 py-1.5 rounded-lg text-xs font-bold transition" onclick="restoreBroadcaster('${data.id}')">
+                                HOST
+                            </button>
+                            <button class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition" onclick="editStation('${data.id}', '${escapeHTML(data.name).replace(/'/g, "\\'")}')">
+                                EDIT
+                            </button>
+                            <button class="bg-red-900/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition" onclick="deleteStation('${data.id}')">
+                                DEL
+                            </button>
+                        </div>
+                    `;
+                    myList.appendChild(div);
+                });
+            } else {
+                myContainer.classList.add('hidden');
+            }
+
+            // --- Render Live Stations ---
             if (activeStations.length === 0) {
-                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">Dead air. Start the first broadcast!</p>';
+                liveList.innerHTML = '<p class="text-slate-500 text-sm text-center py-4">No other live stations right now.</p>';
                 return;
             }
 
@@ -655,7 +774,7 @@
                                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                   <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                                 </span>
-                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Host: ${escapeHTML(data.host || 'DJ')}</p>
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">${data.activeListeners ? data.activeListeners.length : 0} Listening • Host: ${escapeHTML(data.host || 'DJ')}</p>
                             </div>
                         </div>
                     </div>
@@ -663,12 +782,32 @@
                         TUNE IN
                     </button>
                 `;
-                list.appendChild(div);
+                liveList.appendChild(div);
             });
         }, (error) => {
             console.error("Dashboard error:", error);
-            dashboardStatus.innerText = "❌ Go to Firebase Console -> Firestore -> Rules -> Set to 'allow read, write: if true;'";
+            dashboardStatus.innerText = "❌ Check Database Permissions";
         });
+    }
+    
+    // --- MY STATION EDIT CONTROLS ---
+    async function editStation(stationId, currentName) {
+        const newName = prompt("Rename your station:", currentName);
+        if (newName && newName.trim() !== "") {
+            try {
+                await window.fbUpdateDoc(window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', stationId), {
+                    name: newName.trim()
+                });
+            } catch(e) { console.error(e); alert("Failed to update name."); }
+        }
+    }
+    
+    async function deleteStation(stationId) {
+        if (confirm("Are you sure you want to permanently delete this station?")) {
+            try {
+                await window.fbDeleteDoc(window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', stationId));
+            } catch(e) { console.error(e); alert("Failed to delete."); }
+        }
     }
 
     // --- UI HELPERS ---
@@ -687,6 +826,13 @@
     }
     function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
 
+    function updateHypeUI() {
+        const djHype = document.getElementById('dj-hype-count');
+        const listenerHype = document.getElementById('listener-hype-count');
+        if (djHype) djHype.innerText = globalHypeCount;
+        if (listenerHype) listenerHype.innerText = globalHypeCount;
+    }
+
     // --- LOCAL FILE PLAYLIST LOGIC ---
     function handleMusicUpload(e) {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -696,8 +842,18 @@
         if (newFiles.length > 0) {
             const wasEmpty = playlist.length === 0;
             playlist = playlist.concat(newFiles);
+            
+            // Force the queue container to be visible immediately
+            document.getElementById('playlist-container').classList.remove('hidden');
+            document.getElementById('playlist-container').classList.add('flex');
+            
             renderPlaylist();
-            if (wasEmpty) playTrack(0);
+            
+            if (wasEmpty) {
+                playTrack(0);
+            } else {
+                syncPlaylistToFirebase();
+            }
         }
         e.target.value = '';
     }
@@ -707,9 +863,17 @@
         const item = { type: 'youtube', id: videoId, name: title };
         const wasEmpty = playlist.length === 0;
         playlist.push(item);
+        
+        // Force the queue container to be visible immediately
+        document.getElementById('playlist-container').classList.remove('hidden');
+        document.getElementById('playlist-container').classList.add('flex');
+        
         renderPlaylist();
+        
         if (wasEmpty || playNow) {
             playTrack(playlist.length - 1);
+        } else {
+            syncPlaylistToFirebase();
         }
     }
 
@@ -724,7 +888,6 @@
         document.getElementById('playlist-container').classList.add('flex');
 
         if (item instanceof File) {
-            // Local files only play for the DJ in "Just Firebase" mode
             if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
             ytContainer.classList.add('hidden');
             djPlayer.classList.remove('hidden');
@@ -746,40 +909,55 @@
                             event.target.playVideo();
                         },
                         'onStateChange': (event) => {
-                            clearTimeout(djYtEndTimeout);
+                            const currentItem = playlist[currentTrackIndex];
+                            if (!currentItem) return;
+
                             if (event.data === YT.PlayerState.ENDED) {
-                                djYtEndTimeout = setTimeout(() => {
-                                    if (djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
-                                        const state = djYtPlayer.getPlayerState();
-                                        if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                                            playNextTrack();
-                                        }
-                                    }
-                                }, 2000);
+                                document.getElementById('vinyl-icon').classList.add('vinyl-paused');
+                                playNextTrack();
                             } else if (event.data === YT.PlayerState.PLAYING) {
                                 onDJPlay();
                             } else if (event.data === YT.PlayerState.PAUSED) {
                                 document.getElementById('vinyl-icon').classList.add('vinyl-paused');
-                                pushSyncStateToFirebase('paused', item.name);
+                                pushSyncStateToFirebase('paused', currentItem.name);
                             }
+                        },
+                        'onError': (event) => {
+                            console.error("YT Blocked/Error: Skipping track...");
+                            playNextTrack();
                         }
                     }
                 });
             } else {
                 djYtPlayer.loadVideoById(item.id);
             }
-            // Push initial play command
             pushSyncStateToFirebase('playing', item.name, item.id, 0);
         }
         renderPlaylist();
+        syncPlaylistToFirebase();
     }
 
+    let isTransitioningTrack = false;
     function playNextTrack() {
+        if (isTransitioningTrack) return;
         if (playlist.length === 0) return;
+        
+        // Prevent accidental double-skips
+        isTransitioningTrack = true;
+        setTimeout(() => isTransitioningTrack = false, 1500); 
+
         let nextIndex = currentTrackIndex + 1;
         if (nextIndex >= playlist.length) {
-            if (isLooping) nextIndex = 0;
-            else return; 
+            if (isLooping) {
+                nextIndex = 0;
+            } else {
+                const djPlayer = document.getElementById('dj-audio-player');
+                djPlayer.pause();
+                if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+                document.getElementById('vinyl-icon').classList.add('vinyl-paused');
+                pushSyncStateToFirebase('paused', 'Queue Ended');
+                return; 
+            }
         }
         playTrack(nextIndex);
     }
@@ -801,15 +979,29 @@
 
     function pushSyncStateToFirebase(status, trackName, videoId = null, time = 0) {
         if (!isBroadcasting || !currentStationRef) return;
+        
+        const startTs = Date.now() - (time * 1000);
+        const cleanPlaylist = playlist.map(item => item instanceof File ? { type: 'local', name: item.name } : item);
+
         fbUpdateDoc(currentStationRef, {
             updatedAt: Date.now(),
+            playlist: cleanPlaylist,
+            currentTrackIndex: currentTrackIndex,
             currentTrack: {
-                status: status, // 'playing', 'paused', 'local'
+                status: status,
                 title: trackName,
                 videoId: videoId,
-                time: time,
-                timestamp: Date.now()
+                startTs: startTs
             }
+        }).catch(e => console.error(e));
+    }
+    
+    function syncPlaylistToFirebase() {
+        if (!isBroadcasting || !currentStationRef) return;
+        const cleanPlaylist = playlist.map(item => item instanceof File ? { type: 'local', name: item.name } : item);
+        fbUpdateDoc(currentStationRef, {
+            playlist: cleanPlaylist,
+            currentTrackIndex: currentTrackIndex
         }).catch(e => console.error(e));
     }
 
@@ -830,12 +1022,40 @@
         }
         currentTrackIndex = playlist.indexOf(currentFile);
         renderPlaylist();
+        syncPlaylistToFirebase();
     }
 
     function updateTempo() {
         const val = document.getElementById('tempo-slider').value;
         document.getElementById('dj-audio-player').playbackRate = val;
         document.getElementById('tempo-label').innerText = parseFloat(val).toFixed(2) + 'x';
+    }
+
+    function removeTrack(index, event) {
+        if(event) event.stopPropagation();
+        
+        const wasPlaying = (index === currentTrackIndex);
+        playlist.splice(index, 1);
+        
+        if (playlist.length === 0) {
+            currentTrackIndex = 0;
+            const djPlayer = document.getElementById('dj-audio-player');
+            djPlayer.pause();
+            if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+            document.getElementById('vinyl-icon').classList.add('vinyl-paused');
+            pushSyncStateToFirebase('paused', 'No track selected');
+        } else if (wasPlaying) {
+            if (currentTrackIndex >= playlist.length) {
+                 currentTrackIndex = isLooping ? 0 : playlist.length - 1; 
+            }
+            playTrack(currentTrackIndex);
+        } else {
+            if (index < currentTrackIndex) {
+                currentTrackIndex--;
+            }
+            syncPlaylistToFirebase();
+        }
+        renderPlaylist();
     }
 
     function renderPlaylist() {
@@ -846,9 +1066,15 @@
             const isActive = i === currentTrackIndex;
             const isYT = item.type === 'youtube';
             const icon = isYT ? '📺' : '🎵 (Local)';
-            el.className = `truncate cursor-pointer transition px-3 py-1.5 rounded-lg text-xs font-medium ${isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800 border border-transparent'}`;
-            el.innerHTML = isActive ? `<span class="animate-pulse mr-1">▶</span> ${icon} ${escapeHTML(item.name)}` : `<span class="opacity-50">${i + 1}.</span> ${icon} ${escapeHTML(item.name)}`;
-            el.onclick = () => playTrack(i);
+            
+            el.className = `flex justify-between items-center group transition px-3 py-1.5 rounded-lg text-xs font-medium ${isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800 border border-transparent'}`;
+            
+            el.innerHTML = `
+                <div class="truncate cursor-pointer flex-1" onclick="playTrack(${i})">
+                    ${isActive ? `<span class="animate-pulse mr-1">▶</span>` : `<span class="opacity-50">${i + 1}.</span>`} ${icon} ${escapeHTML(item.name)}
+                </div>
+                <button onclick="removeTrack(${i}, event)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 font-bold px-2 py-1 transition rounded hover:bg-red-500/20 shrink-0 ml-2" title="Remove Track">×</button>
+            `;
             list.appendChild(el);
         });
     }
@@ -863,7 +1089,6 @@
         resContainer.classList.add('flex');
 
         try {
-            // Reverted back to direct Google API call
             const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`);
             const data = await res.json();
             if(data.items && data.items.length > 0) {
@@ -901,11 +1126,10 @@
                     globalHypeCount = docSnap.data().totalHearts || 0;
                     updateHypeUI();
                 } else {
-                    // Create empty profile on first load
                     window.fbSetDoc(profileRef, { totalHearts: 0 });
                 }
             });
-        } catch(e) { console.error("Error loading hearts", e); }
+        } catch(e) {}
     }
 
     async function loadUserProfile() {
@@ -923,7 +1147,7 @@
                     }
                 }
             });
-        } catch(e) { console.error(e); }
+        } catch(e) {}
     }
 
     async function saveUserProfile(username, color) {
@@ -942,24 +1166,14 @@
 
     async function saveVideoToCloud(videoId, title, event) {
         if (event) event.stopPropagation();
-        if (!fbDb || !fbUserId) {
-            alert("Firebase not connected or user not authenticated.");
-            return;
-        }
+        if (!fbDb || !fbUserId) return;
         
         const btn = event ? event.currentTarget : null;
-        if (btn) {
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-        }
+        if (btn) { btn.innerText = "Saving..."; btn.disabled = true; }
 
         try {
             const collectionRef = fbCollection(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls');
-            await fbAddDoc(collectionRef, {
-                videoId: videoId,
-                title: title,
-                timestamp: Date.now()
-            });
+            await fbAddDoc(collectionRef, { videoId: videoId, title: title, timestamp: Date.now() });
             
             if (btn) {
                 btn.innerText = "Saved!";
@@ -974,14 +1188,7 @@
                 }, 2000);
             }
         } catch(e) {
-            console.error("Error saving to Firebase", e);
-            if (btn) {
-                btn.innerText = "Error";
-                setTimeout(() => {
-                    btn.innerText = "Save ☁️";
-                    btn.disabled = false;
-                }, 2000);
-            }
+            if (btn) { btn.innerText = "Error"; setTimeout(() => { btn.innerText = "Save ☁️"; btn.disabled = false; }, 2000); }
         }
     }
 
@@ -1007,21 +1214,15 @@
         try {
             let title = "Saved YouTube Track";
             try {
-                // Reverted back to direct Google API call
                 const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YT_API_KEY}`);
                 const data = await res.json();
                 if(data.items && data.items.length > 0) title = data.items[0].snippet.title;
-            } catch(e) { console.warn("Failed to get title", e); }
+            } catch(e) {}
 
             const collectionRef = fbCollection(fbDb, 'artifacts', fbAppId, 'users', fbUserId, 'saved_yt_urls');
-            await fbAddDoc(collectionRef, {
-                videoId: videoId,
-                title: title,
-                timestamp: Date.now()
-            });
+            await fbAddDoc(collectionRef, { videoId: videoId, title: title, timestamp: Date.now() });
             input.value = '';
         } catch(e) {
-            console.error("Error saving to Firebase", e);
             input.value = oldText;
         } finally {
             input.disabled = false;
@@ -1069,7 +1270,6 @@
 
     // --- AUDIO MIXER & SYNTH FX (Local DJ Audio Only) ---
     function updateMixer() {
-        // Reduced to just controlling UI volumes since audioCtx is purely local now
         const musicVol = document.getElementById('music-vol').value;
         const micVol = document.getElementById('mic-vol').value;
 
@@ -1084,20 +1284,11 @@
         if (djPlayer) djPlayer.volume = Math.min(musicVol, 1);
     }
 
-    function playSynthFX(type) {
-        // Disabled Web Audio API synths in Firebase Sync mode to simplify architecture
-        // A full implementation would pre-render synths as MP3s to play locally.
-        alert("Synths disabled in Firebase Cloud Sync mode.");
-    }
-    
-    function toggleRecording() {
-        alert("Recording unavailable in Cloud Sync mode.");
-    }
+    function playSynthFX(type) { alert("Synths disabled in Firebase Cloud Sync mode."); }
+    function toggleRecording() { alert("Recording unavailable in Cloud Sync mode."); }
 
     // --- CHAT LOGIC ---
-    function handleChatEnter(e, role) {
-        if (e.key === 'Enter') sendChatMessage(role);
-    }
+    function handleChatEnter(e, role) { if (e.key === 'Enter') sendChatMessage(role); }
 
     async function sendChatMessage(role) {
         const inputId = role === 'dj' ? 'dj-chat-input' : 'listener-chat-input';
@@ -1109,13 +1300,8 @@
         
         try {
             const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
-            await fbAddDoc(chatRef, {
-                sender: myUsername,
-                text: text,
-                color: myStationColor,
-                timestamp: Date.now()
-            });
-        } catch(e) { console.error("Chat send failed", e); }
+            await fbAddDoc(chatRef, { sender: myUsername, text: text, color: myStationColor, timestamp: Date.now() });
+        } catch(e) {}
     }
 
     function renderChatWindow(msgs, role) {
@@ -1126,15 +1312,11 @@
         msgs.forEach(msg => {
             const div = document.createElement('div');
             div.className = 'chat-msg flex flex-col mb-1';
-            
             const isMe = msg.sender === myUsername;
             const nameDisplay = isMe ? 'You' : escapeHTML(msg.sender);
             let nameStyle = isMe ? 'color: #38bdf8;' : `color: ${msg.color || '#10b981'};`; 
 
-            div.innerHTML = `
-                <span style="${nameStyle}" class="font-bold text-[10px] uppercase tracking-wider">${nameDisplay}</span>
-                <span class="text-slate-200">${escapeHTML(msg.text)}</span>
-            `;
+            div.innerHTML = `<span style="${nameStyle}" class="font-bold text-[10px] uppercase tracking-wider">${nameDisplay}</span><span class="text-slate-200">${escapeHTML(msg.text)}</span>`;
             container.appendChild(div);
         });
         container.scrollTop = container.scrollHeight;
@@ -1143,6 +1325,11 @@
     // --- BROADCASTER (DJ) LOGIC ---
     async function startBroadcaster() {
         if(!fbDb) { alert("Firebase not initialized yet. Please wait."); return; }
+        
+        if(fbAuth.currentUser && fbAuth.currentUser.isAnonymous) {
+            const wantsToLink = confirm("You are broadcasting anonymously. If you close this tab, your station might be lost! Click OK to continue, or Cancel to Sign In with Google first.");
+            if(!wantsToLink) return;
+        }
 
         const nameInput = document.getElementById('station-name-input').value.trim();
         const userInp = document.getElementById('dj-username-input').value.trim();
@@ -1152,56 +1339,51 @@
         myUsername = userInp || "DJ Host";
         myStationId = 'STN-' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
-        saveUserProfile(myUsername, myStationColor);
+        await saveUserProfile(myUsername, myStationColor);
 
         switchView('dj-view');
         document.getElementById('dj-station-name').innerText = myStationName;
         document.getElementById('dj-station-name').style.color = myStationColor;
         document.getElementById('station-id-display').innerText = myStationId;
 
-        // Create the Room in Firebase with the DJ's lifetime hearts
+        // Create the Room
         currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', myStationId);
         await fbSetDoc(currentStationRef, {
             name: myStationName,
             host: myUsername,
+            hostUid: fbUserId,
             color: myStationColor,
             hype: globalHypeCount,
+            activeListeners: [],
+            playlist: [],
+            currentTrackIndex: 0,
             updatedAt: Date.now(),
             currentTrack: null
         });
 
         isBroadcasting = true;
 
-        // Periodic Sync Loop (Heartbeat)
         setInterval(() => {
             if (!isBroadcasting || !currentStationRef) return;
             
-            let trackData = null;
+            // HEARTBEAT FAILSAFE: If video buffers at 99% and swallows the ENDED event, manually skip it
             if (playlist.length > 0 && playlist[currentTrackIndex].type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
-                const state = djYtPlayer.getPlayerState();
-                if (state === YT.PlayerState.PLAYING) {
-                     const vidObj = djYtPlayer.getVideoData();
-                     if (vidObj && vidObj.video_id) {
-                         trackData = {
-                             status: 'playing',
-                             title: playlist[currentTrackIndex].name,
-                             videoId: vidObj.video_id,
-                             time: djYtPlayer.getCurrentTime(),
-                             timestamp: Date.now()
-                         };
-                     }
-                }
+                try {
+                    const state = djYtPlayer.getPlayerState();
+                    const current = djYtPlayer.getCurrentTime() || 0;
+                    const duration = djYtPlayer.getDuration() || 0;
+                    
+                    if (duration > 0 && current > 0 && (duration - current) < 1.5) {
+                         if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                              playNextTrack();
+                         }
+                    }
+                } catch(e) {}
             }
             
-            // Just update timestamp to keep room alive, and time if playing
-            const updateObj = { updatedAt: Date.now() };
-            if (trackData) updateObj.currentTrack = trackData;
-            
-            fbUpdateDoc(currentStationRef, updateObj).catch(e => console.error(e));
-            
-        }, 4000);
+            fbUpdateDoc(currentStationRef, { updatedAt: Date.now() }).catch(e => {});
+        }, 5000);
 
-        // Listen to Chat
         const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
         activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
             const msgs = [];
@@ -1210,43 +1392,121 @@
             renderChatWindow(msgs, 'dj');
         });
         
-        // Listen to Reactions / Hype (since listeners write to the doc directly)
+        isFirstReactionSync = true;
         activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
             if(docSnap.exists()) {
                 const data = docSnap.data();
+                document.getElementById('listener-count').innerText = data.activeListeners ? data.activeListeners.length : 0;
                 
-                // If listeners increased the hype, save it to the DJ's permanent profile
                 if (data.hype > globalHypeCount) {
                     globalHypeCount = data.hype;
                     const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'dj_profiles', fbUserId);
-                    window.fbUpdateDoc(profileRef, { totalHearts: globalHypeCount }).catch(e => console.error(e));
+                    window.fbUpdateDoc(profileRef, { totalHearts: globalHypeCount }).catch(e => {});
                 }
-                
                 globalHypeCount = data.hype || globalHypeCount;
                 updateHypeUI();
                 
-                if (data.latestReaction && data.latestReaction.ts > Date.now() - 5000) {
-                     if(data.latestReaction.emoji === '🎉') fireConfetti();
-                     else showFloatingEmoji(data.latestReaction.emoji);
+                // New bulletproof Emoji Sync
+                if (data.latestReaction && data.latestReaction.id !== lastReactionId) {
+                     lastReactionId = data.latestReaction.id;
+                     if (!isFirstReactionSync) {
+                         if(data.latestReaction.emoji === '🎉') fireConfetti();
+                         else showFloatingEmoji(data.latestReaction.emoji);
+                     }
                 }
+                isFirstReactionSync = false;
             }
         });
     }
 
-    function toggleMute() {
-        alert("Mic disabled in Firebase Sync mode.");
-    }
+    async function restoreBroadcaster(savedId) {
+        if (isBroadcasting) return; 
 
-    function toggleDeafen() {
-        alert("Monitor deafen disabled in Firebase Sync mode.");
-    }
-
-    function endBroadcast() {
-        if(currentStationRef) {
-            window.fbDeleteDoc(currentStationRef).finally(() => location.reload());
-        } else {
-            location.reload();
+        const docRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', savedId);
+        const docSnap = await window.fbGetDoc(docRef);
+        if(!docSnap.exists()) {
+            alert("Station no longer exists!");
+            return;
         }
+        const data = docSnap.data();
+
+        myStationId = savedId;
+        myStationName = data.name;
+        myUsername = data.host;
+        myStationColor = data.color || '#10b981';
+        
+        switchView('dj-view');
+        document.getElementById('dj-station-name').innerText = myStationName;
+        document.getElementById('dj-station-name').style.color = myStationColor;
+        document.getElementById('station-id-display').innerText = myStationId;
+        
+        currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', myStationId);
+        isBroadcasting = true;
+        
+        if (data.playlist) {
+            playlist = data.playlist.filter(p => p.type === 'youtube');
+            currentTrackIndex = data.currentTrackIndex || 0;
+            renderPlaylist();
+        }
+
+        setInterval(() => {
+            if (!isBroadcasting || !currentStationRef) return;
+
+            // HEARTBEAT FAILSAFE
+            if (playlist.length > 0 && playlist[currentTrackIndex].type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
+                try {
+                    const state = djYtPlayer.getPlayerState();
+                    const current = djYtPlayer.getCurrentTime() || 0;
+                    const duration = djYtPlayer.getDuration() || 0;
+                    if (duration > 0 && current > 0 && (duration - current) < 1.5) {
+                         if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) playNextTrack();
+                    }
+                } catch(e) {}
+            }
+
+            fbUpdateDoc(currentStationRef, { updatedAt: Date.now() }).catch(e => {});
+        }, 5000);
+
+        const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
+        activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
+            const msgs = [];
+            snapshot.forEach(doc => msgs.push(doc.data()));
+            msgs.sort((a,b) => a.timestamp - b.timestamp);
+            renderChatWindow(msgs, 'dj');
+        });
+        
+        isFirstReactionSync = true;
+        activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
+            if(docSnap.exists()) {
+                const docData = docSnap.data();
+                document.getElementById('listener-count').innerText = docData.activeListeners ? docData.activeListeners.length : 0;
+                
+                if (docData.hype > globalHypeCount) {
+                    globalHypeCount = docData.hype;
+                    const profileRef = window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'dj_profiles', fbUserId);
+                    window.fbUpdateDoc(profileRef, { totalHearts: globalHypeCount }).catch(e => {});
+                }
+                globalHypeCount = docData.hype || globalHypeCount;
+                updateHypeUI();
+                
+                // New bulletproof Emoji Sync
+                if (docData.latestReaction && docData.latestReaction.id !== lastReactionId) {
+                     lastReactionId = docData.latestReaction.id;
+                     if (!isFirstReactionSync) {
+                         if(docData.latestReaction.emoji === '🎉') fireConfetti();
+                         else showFloatingEmoji(docData.latestReaction.emoji);
+                     }
+                }
+                isFirstReactionSync = false;
+            }
+        });
+    }
+
+    function toggleMute() { alert("Mic disabled in Firebase Sync mode."); }
+    function toggleDeafen() { alert("Monitor deafen disabled in Firebase Sync mode."); }
+
+    async function endBroadcast() {
+        location.reload(); // Simply brings us back to the dashboard. The room stays alive in "My Stations"!
     }
 
     // --- LISTENER LOGIC ---
@@ -1263,7 +1523,10 @@
         myStationColor = themeColor; 
         myStationId = stationId;
 
-        saveUserProfile(myUsername, document.getElementById('station-color-input').value);
+        window.audioUnlocked = false;
+        window.lastTrackCmd = null;
+
+        await saveUserProfile(myUsername, document.getElementById('station-color-input').value);
 
         switchView('listener-view');
         document.getElementById('listener-station-display').innerText = stationName;
@@ -1278,16 +1541,50 @@
             if (!listenerYtPlayer || typeof listenerYtPlayer.loadVideoById !== 'function') {
                 try {
                     listenerYtPlayer = new YT.Player('yt-player-listener', {
-                        height: '10', width: '10',
+                        height: '300', width: '300',
                         playerVars: { 'autoplay': 1, 'controls': 0, 'playsinline': 1 },
                         events: { 
                             'onReady': (e) => { 
-                                e.target.mute(); 
-                                if (window.queuedYtCmd) {
+                                if (window.audioUnlocked) {
                                     e.target.unMute();
                                     e.target.setVolume(document.getElementById('listener-vol-slider').value * 100);
-                                    e.target.loadVideoById(window.queuedYtCmd.videoId, window.queuedYtCmd.time || 0);
+                                } else {
+                                    e.target.mute(); 
+                                }
+                                
+                                if (window.queuedYtCmd && window.audioUnlocked) {
+                                    let expectedTime = 0;
+                                    if(window.queuedYtCmd.startTs !== undefined) {
+                                        expectedTime = (Date.now() - window.queuedYtCmd.startTs) / 1000;
+                                    }
+                                    window.currentlyPlayingListenerVid = window.queuedYtCmd.videoId;
+                                    e.target.loadVideoById(window.queuedYtCmd.videoId, Math.max(0, expectedTime));
                                     window.queuedYtCmd = null;
+                                }
+                            },
+                            'onStateChange': (e) => {
+                                // OFFLINE DJ AUTO-ADVANCE LOGIC
+                                if (e.data === YT.PlayerState.ENDED) {
+                                    if (window.currentStationData && (Date.now() - window.currentStationData.updatedAt > 15000)) {
+                                        const pl = window.currentStationData.playlist || [];
+                                        const nextIdx = (window.currentStationData.currentTrackIndex || 0) + 1;
+                                        
+                                        if (nextIdx < pl.length) {
+                                            const nextTrack = pl[nextIdx];
+                                            if (nextTrack.type === 'youtube') {
+                                                fbUpdateDoc(currentStationRef, {
+                                                    currentTrackIndex: nextIdx,
+                                                    currentTrack: {
+                                                        status: 'playing',
+                                                        title: nextTrack.name,
+                                                        videoId: nextTrack.id,
+                                                        startTs: Date.now(),
+                                                        updatedAt: Date.now()
+                                                    }
+                                                }).catch(err => console.error(err));
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1297,28 +1594,43 @@
         }
         initRobustYTPlayer();
 
-        // Subscribe to Station Document
         currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', stationId);
-        
+        fbUpdateDoc(currentStationRef, { activeListeners: window.fbArrayUnion(fbUserId) }).catch(e => console.error(e));
+
+        window.addEventListener('beforeunload', () => {
+            if (currentStationRef && fbUserId) {
+                fbUpdateDoc(currentStationRef, { activeListeners: window.fbArrayRemove(fbUserId) }).catch(()=>{});
+            }
+        });
+
+        isFirstReactionSync = true;
         activeStationUnsubscribe = fbOnSnapshot(currentStationRef, (docSnap) => {
             if (!docSnap.exists()) {
                 setListenerStateOff();
                 return;
             }
             const data = docSnap.data();
+            window.currentStationData = data; 
             
-            setListenerStateLive();
+            if (!window.audioUnlocked) {
+                setListenerStateWaiting();
+            } else {
+                setListenerStateLive();
+            }
             
-            // Sync Hype & Reactions
             globalHypeCount = data.hype || 0;
             updateHypeUI();
             
-            if (data.latestReaction && data.latestReaction.ts > Date.now() - 5000) {
-                 if(data.latestReaction.emoji === '🎉') fireConfetti();
-                 else showFloatingEmoji(data.latestReaction.emoji);
+            // New bulletproof Emoji Sync
+            if (data.latestReaction && data.latestReaction.id !== lastReactionId) {
+                 lastReactionId = data.latestReaction.id;
+                 if (!isFirstReactionSync) {
+                     if(data.latestReaction.emoji === '🎉') fireConfetti();
+                     else showFloatingEmoji(data.latestReaction.emoji);
+                 }
             }
+            isFirstReactionSync = false;
             
-            // Sync YouTube
             if (data.currentTrack) {
                 document.getElementById('now-playing-container').classList.remove('hidden');
                 document.getElementById('now-playing-text').innerText = data.currentTrack.title + (data.currentTrack.status === 'local' ? ' (Host Local File)' : '');
@@ -1339,7 +1651,6 @@
             }
         });
 
-        // Subscribe to Chat
         const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + stationId);
         activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
             const msgs = [];
@@ -1348,60 +1659,65 @@
             renderChatWindow(msgs, 'listener');
         });
         
-        // Announce join
         sendChatMessage('listener'); 
     }
     
+    function leaveStation() {
+        if (currentStationRef && fbUserId) {
+            fbUpdateDoc(currentStationRef, { activeListeners: window.fbArrayRemove(fbUserId) }).then(() => location.reload()).catch(() => location.reload());
+        } else {
+            location.reload();
+        }
+    }
+
     function syncListenerYT(trackCmd) {
+        window.lastTrackCmd = trackCmd;
+        if (!window.audioUnlocked) return;
+
         if(!listenerYtPlayer || typeof listenerYtPlayer.loadVideoById !== 'function') {
             window.queuedYtCmd = trackCmd;
             return;
         }
         
         try {
-            const currentData = listenerYtPlayer.getVideoData ? listenerYtPlayer.getVideoData() : {};
-            
             if (trackCmd.status === 'playing') {
+                const vol = document.getElementById('listener-vol-slider').value * 100;
                 if(typeof listenerYtPlayer.unMute === 'function') listenerYtPlayer.unMute();
-                if(typeof listenerYtPlayer.setVolume === 'function') listenerYtPlayer.setVolume(document.getElementById('listener-vol-slider').value * 100);
+                if(typeof listenerYtPlayer.setVolume === 'function') listenerYtPlayer.setVolume(vol);
 
-                if (currentData.video_id !== trackCmd.videoId) {
-                     listenerYtPlayer.loadVideoById(trackCmd.videoId, trackCmd.time || 0);
-                     
-                     // Force playback if browser stalls
-                     setTimeout(() => {
-                         if(listenerYtPlayer && typeof listenerYtPlayer.getPlayerState === 'function') {
-                             const state = listenerYtPlayer.getPlayerState();
-                             if(state === YT.PlayerState.UNSTARTED || state === YT.PlayerState.CUED) {
-                                 listenerYtPlayer.playVideo();
-                             }
-                         }
-                     }, 1500);
+                let expectedTime = 0;
+                if(trackCmd.startTs !== undefined) {
+                    expectedTime = (Date.now() - trackCmd.startTs) / 1000;
+                }
+
+                if (window.currentlyPlayingListenerVid !== trackCmd.videoId) {
+                     window.currentlyPlayingListenerVid = trackCmd.videoId;
+                     listenerYtPlayer.loadVideoById(trackCmd.videoId, Math.max(0, expectedTime));
                 } else {
-                     if (listenerYtPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+                     const state = listenerYtPlayer.getPlayerState();
+                     
+                     if (state === YT.PlayerState.ENDED) return;
+
+                     if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
                          listenerYtPlayer.playVideo();
                      }
                      
-                     if(trackCmd.time !== undefined && typeof listenerYtPlayer.getCurrentTime === 'function') {
-                         // Calculate expected time based on when the DJ sent the heartbeat vs now
-                         const latencyAdj = (Date.now() - trackCmd.timestamp) / 1000;
-                         const expectedTime = trackCmd.time + (latencyAdj > 0 && latencyAdj < 10 ? latencyAdj : 0);
-                         
-                         const current = listenerYtPlayer.getCurrentTime();
+                     if(typeof listenerYtPlayer.getCurrentTime === 'function' && typeof listenerYtPlayer.getDuration === 'function') {
+                         const current = listenerYtPlayer.getCurrentTime() || 0;
+                         const duration = listenerYtPlayer.getDuration() || 0;
                          const diff = current - expectedTime;
                          
-                         // Check if out of sync by more than 4 seconds
-                         if(Math.abs(diff) > 4) {
-                             if (!(trackCmd.time < 2 && current > 10)) { // Ad protection
+                         if(Math.abs(diff) > 4 && !(expectedTime < 2 && current > 10)) { 
+                             if (duration > 0 && expectedTime >= duration - 2) {
+                                 // Let it end naturally, seeking past duration forces a restart loop
+                             } else {
                                  listenerYtPlayer.seekTo(expectedTime);
                              }
                          }
                      }
                 }
             } else if (trackCmd.status === 'paused') {
-                if(typeof listenerYtPlayer.pauseVideo === 'function') {
-                    listenerYtPlayer.pauseVideo();
-                }
+                if(typeof listenerYtPlayer.pauseVideo === 'function') listenerYtPlayer.pauseVideo();
             }
         } catch(e) { console.warn("YT Sync Error", e); }
     }
@@ -1431,7 +1747,7 @@
             } else {
                 btn.classList.remove('bg-orange-900/40', 'border-orange-500/50', 'text-orange-400');
                 btn.classList.add('bg-slate-800', 'border-slate-600', 'text-white');
-                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />`;
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" />`;
                 slider.style.opacity = '1';
             }
         }
@@ -1443,6 +1759,39 @@
             listenerYtPlayer.setVolume(val * 100);
             if(val > 0 && listenerYtPlayer.isMuted()) toggleListenerDeafen();
         }
+    }
+
+    function unlockListenerAudio() {
+        window.audioUnlocked = true;
+        setListenerStateLive();
+        
+        if (listenerYtPlayer && typeof listenerYtPlayer.unMute === 'function') {
+            listenerYtPlayer.unMute();
+            listenerYtPlayer.setVolume(document.getElementById('listener-vol-slider').value * 100);
+            
+            if (window.lastTrackCmd && window.lastTrackCmd.videoId) {
+                let expectedTime = 0;
+                if(window.lastTrackCmd.startTs !== undefined) {
+                    expectedTime = (Date.now() - window.lastTrackCmd.startTs) / 1000;
+                }
+                window.currentlyPlayingListenerVid = window.lastTrackCmd.videoId;
+                listenerYtPlayer.loadVideoById(window.lastTrackCmd.videoId, Math.max(0, expectedTime));
+            }
+            listenerYtPlayer.playVideo();
+        }
+    }
+
+    function setListenerStateWaiting() {
+        document.getElementById('listener-status-text').innerText = "Tap icon to start audio";
+        document.getElementById('listener-status-text').style.color = '#94a3b8'; 
+        document.getElementById('buffer-bar').classList.add('hidden');
+        document.getElementById('reactions-bar').classList.add('hidden');
+        
+        const iconContainer = document.getElementById('listener-status-icon');
+        iconContainer.classList.replace('bg-slate-900', 'bg-slate-800');
+        iconContainer.style.borderColor = '#334155';
+        
+        iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 cursor-pointer hover:scale-110 transition animate-bounce" style="color: ${myStationColor}" viewBox="0 0 20 20" fill="currentColor" onclick="unlockListenerAudio()"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>`;
     }
 
     function setListenerStateLive() {
@@ -1472,8 +1821,13 @@
         iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 011.414 0L10 14.586H8.414l-1.414-1.414-4.707 4.707A1 1 0 011 17v-4a1 1 0 011-1h1.586l4.707-4.707C8.923 6.663 10 7.109 10 8v5.586l1.414-1.414z" /></svg>`;
     }
 
-    // --- EMOJIS / REACTIONS / CONFETTI ---
+    // --- SECRETS, EMOJIS & CLEANUP ---
     async function sendReaction(emoji) {
+        // Generate a random ID immediately so we don't accidentally ignore our own reaction or double-fire
+        const reactionId = Math.random().toString(36).substr(2, 9);
+        lastReactionId = reactionId;
+        
+        // Show it locally instantly for zero-latency feedback
         if(emoji === '🎉') fireConfetti();
         else showFloatingEmoji(emoji);
         
@@ -1483,7 +1837,7 @@
         }
 
         if (currentStationRef) {
-            const updateData = { latestReaction: { emoji: emoji, ts: Date.now() } };
+            const updateData = { latestReaction: { emoji: emoji, id: reactionId } };
             if (emoji === '💖') updateData.hype = globalHypeCount;
             fbUpdateDoc(currentStationRef, updateData).catch(e => console.error(e));
         }
@@ -1534,7 +1888,29 @@
         }
     }
 
-    // App starts by initializing Firebase directly with your configuration
+    async function adminWipeAllStations() {
+        if(!fbDb) return;
+        const dash = document.getElementById('dashboard-status');
+        dash.innerText = "⚠️ WIPING ALL STATIONS...";
+        dash.style.color = "#ef4444"; 
+        
+        try {
+            const stationsRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations');
+            const snapshot = await fbGetDocs(stationsRef);
+            let count = 0;
+            snapshot.forEach(docSnap => { window.fbDeleteDoc(docSnap.ref); count++; });
+            dash.innerText = `✅ WIPED ${count} STATIONS`;
+            setTimeout(() => { dash.style.color = ""; initDashboard(); }, 3000);
+        } catch(e) {}
+    }
+
+    let secretCodeBuffer = "";
+    document.addEventListener('keydown', (e) => {
+        secretCodeBuffer += e.key;
+        if (secretCodeBuffer.length > 15) secretCodeBuffer = secretCodeBuffer.slice(-15);
+        if (secretCodeBuffer.endsWith("07312012")) { secretCodeBuffer = ""; adminWipeAllStations(); }
+    });
+
     window.onload = initFirebaseAndApp;
 </script>
 </body>
