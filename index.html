@@ -720,11 +720,14 @@
             let activeStations = [];
             let myStations = [];
             
+            // Fetch fallback memory in case they changed accounts from Anonymous to Google
+            let ownedLocal = JSON.parse(localStorage.getItem('ownedRadioStations') || '[]');
+            
             snapshot.forEach(doc => {
                 const data = doc.data();
                 
-                // If I am logged in and I own this station, it ALWAYS shows in My Stations (even offline)
-                if (fbUserId && data.hostUid === fbUserId) {
+                // If I am logged in and I own this station via Cloud UID OR via Local Browser Memory
+                if ((fbUserId && data.hostUid === fbUserId) || ownedLocal.includes(doc.id)) {
                     myStations.push({ id: doc.id, ...data });
                 } else {
                     // Stations NEVER disappear now! Keep all other stations visible.
@@ -829,6 +832,11 @@
         if (confirm("Are you sure you want to permanently delete this station?")) {
             try {
                 await window.fbDeleteDoc(window.fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', stationId));
+                
+                // Clean local fallback memory
+                let owned = JSON.parse(localStorage.getItem('ownedRadioStations') || '[]');
+                owned = owned.filter(id => id !== stationId);
+                localStorage.setItem('ownedRadioStations', JSON.stringify(owned));
             } catch(e) { console.error(e); alert("Failed to delete."); }
         }
     };
@@ -1450,6 +1458,13 @@
         myUsername = userInp || "DJ Host";
         myStationId = 'STN-' + Math.random().toString(36).substr(2, 6).toUpperCase();
 
+        // Save ownership locally so it survives account switching
+        let owned = JSON.parse(localStorage.getItem('ownedRadioStations') || '[]');
+        if (!owned.includes(myStationId)) {
+            owned.push(myStationId);
+            localStorage.setItem('ownedRadioStations', JSON.stringify(owned));
+        }
+
         await saveUserProfile(myUsername, myStationColor);
 
         switchView('dj-view');
@@ -1537,6 +1552,11 @@
         const docSnap = await window.fbGetDoc(docRef);
         if(!docSnap.exists()) {
             alert("Station no longer exists!");
+            
+            // Clean up dead memory
+            let owned = JSON.parse(localStorage.getItem('ownedRadioStations') || '[]');
+            owned = owned.filter(id => id !== savedId);
+            localStorage.setItem('ownedRadioStations', JSON.stringify(owned));
             return;
         }
         const data = docSnap.data();
@@ -1554,10 +1574,15 @@
         currentStationRef = fbDoc(fbDb, 'artifacts', fbAppId, 'public', 'data', 'stations', myStationId);
         isBroadcasting = true;
         
-        if (data.playlist) {
+        if (data.playlist && data.playlist.length > 0) {
             playlist = data.playlist.filter(p => p.type === 'youtube');
             currentTrackIndex = data.currentTrackIndex || 0;
             renderPlaylist();
+            
+            // Automatically resume playback of the queue!
+            if (playlist.length > 0) {
+                playTrack(Math.min(currentTrackIndex, playlist.length - 1));
+            }
         }
 
         setInterval(() => {
