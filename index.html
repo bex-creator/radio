@@ -888,7 +888,7 @@
         document.getElementById('playlist-container').classList.add('flex');
 
         if (item instanceof File) {
-            if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+            if(djYtPlayer && typeof djYtPlayer.stopVideo === 'function') djYtPlayer.stopVideo();
             ytContainer.classList.add('hidden');
             djPlayer.classList.remove('hidden');
             djPlayer.src = URL.createObjectURL(item);
@@ -929,7 +929,13 @@
                     }
                 });
             } else {
-                djYtPlayer.loadVideoById(item.id);
+                djYtPlayer.loadVideoById({videoId: item.id, startSeconds: 0});
+                // Give the iframe a tiny delay to process the new video before forcing play
+                setTimeout(() => {
+                    if (djYtPlayer && typeof djYtPlayer.playVideo === 'function') {
+                        djYtPlayer.playVideo();
+                    }
+                }, 200);
             }
             pushSyncStateToFirebase('playing', item.name, item.id, 0);
         }
@@ -953,7 +959,7 @@
             } else {
                 const djPlayer = document.getElementById('dj-audio-player');
                 djPlayer.pause();
-                if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+                if(djYtPlayer && typeof djYtPlayer.stopVideo === 'function') djYtPlayer.stopVideo();
                 document.getElementById('vinyl-icon').classList.add('vinyl-paused');
                 pushSyncStateToFirebase('paused', 'Queue Ended');
                 return; 
@@ -1366,14 +1372,14 @@
         setInterval(() => {
             if (!isBroadcasting || !currentStationRef) return;
             
-            // HEARTBEAT FAILSAFE: If video buffers at 99% and swallows the ENDED event, manually skip it
+            // HEARTBEAT FAILSAFE: Check more frequently, aggressively advance if stuck at the end
             if (playlist.length > 0 && playlist[currentTrackIndex].type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
                 try {
                     const state = djYtPlayer.getPlayerState();
                     const current = djYtPlayer.getCurrentTime() || 0;
                     const duration = djYtPlayer.getDuration() || 0;
                     
-                    if (duration > 0 && current > 0 && (duration - current) < 1.5) {
+                    if (duration > 0 && current > 0 && (duration - current) < 2.0) {
                          if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
                               playNextTrack();
                          }
@@ -1382,7 +1388,7 @@
             }
             
             fbUpdateDoc(currentStationRef, { updatedAt: Date.now() }).catch(e => {});
-        }, 5000);
+        }, 3000);
 
         const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
         activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
@@ -1458,14 +1464,14 @@
                     const state = djYtPlayer.getPlayerState();
                     const current = djYtPlayer.getCurrentTime() || 0;
                     const duration = djYtPlayer.getDuration() || 0;
-                    if (duration > 0 && current > 0 && (duration - current) < 1.5) {
+                    if (duration > 0 && current > 0 && (duration - current) < 2.0) {
                          if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) playNextTrack();
                     }
                 } catch(e) {}
             }
 
             fbUpdateDoc(currentStationRef, { updatedAt: Date.now() }).catch(e => {});
-        }, 5000);
+        }, 3000);
 
         const chatRef = fbCollection(fbDb, 'artifacts', fbAppId, 'public', 'data', 'chat_' + myStationId);
         activeChatUnsubscribe = fbOnSnapshot(chatRef, (snapshot) => {
@@ -1558,7 +1564,8 @@
                                         expectedTime = (Date.now() - window.queuedYtCmd.startTs) / 1000;
                                     }
                                     window.currentlyPlayingListenerVid = window.queuedYtCmd.videoId;
-                                    e.target.loadVideoById(window.queuedYtCmd.videoId, Math.max(0, expectedTime));
+                                    e.target.loadVideoById({videoId: window.queuedYtCmd.videoId, startSeconds: Math.max(0, expectedTime)});
+                                    e.target.playVideo();
                                     window.queuedYtCmd = null;
                                 }
                             },
@@ -1692,7 +1699,12 @@
 
                 if (window.currentlyPlayingListenerVid !== trackCmd.videoId) {
                      window.currentlyPlayingListenerVid = trackCmd.videoId;
-                     listenerYtPlayer.loadVideoById(trackCmd.videoId, Math.max(0, expectedTime));
+                     listenerYtPlayer.loadVideoById({videoId: trackCmd.videoId, startSeconds: Math.max(0, expectedTime)});
+                     setTimeout(() => {
+                         if(listenerYtPlayer && typeof listenerYtPlayer.playVideo === 'function') {
+                             listenerYtPlayer.playVideo();
+                         }
+                     }, 200);
                 } else {
                      const state = listenerYtPlayer.getPlayerState();
                      
@@ -1775,7 +1787,7 @@
                     expectedTime = (Date.now() - window.lastTrackCmd.startTs) / 1000;
                 }
                 window.currentlyPlayingListenerVid = window.lastTrackCmd.videoId;
-                listenerYtPlayer.loadVideoById(window.lastTrackCmd.videoId, Math.max(0, expectedTime));
+                listenerYtPlayer.loadVideoById({videoId: window.lastTrackCmd.videoId, startSeconds: Math.max(0, expectedTime)});
             }
             listenerYtPlayer.playVideo();
         }
