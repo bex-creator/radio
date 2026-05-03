@@ -819,7 +819,7 @@
                         <button class="bg-slate-800 text-white hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap">
                             TUNE IN
                         </button>
-                        ${isAdmin ? `<button onclick="event.stopPropagation(); window.adminDeleteStation('${data.id}')" class="text-white font-bold px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg transition text-xs shadow-[0_0_15px_rgba(220,38,38,0.6)]" title="Admin Wipe Station">WIPE</button>` : ''}
+                        ${isAdmin ? `<button onclick="event.stopPropagation(); window.adminDeleteStation('${data.id}')" class="flex items-center justify-center w-8 h-8 bg-red-600 hover:bg-red-500 text-white rounded-lg transition shadow-[0_0_10px_rgba(220,38,38,0.5)] font-bold text-lg" title="Delete Station">✕</button>` : ''}
                     </div>
                 `;
                 liveList.appendChild(div);
