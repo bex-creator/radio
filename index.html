@@ -597,10 +597,10 @@
     async function initFirebaseAndApp() {
         try {
             const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-            const { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+            const { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInWithCustomToken } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
             const { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc, getDocs } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
-            fbAppId = firebaseConfig.projectId;
+            fbAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
 
             const app = initializeApp(firebaseConfig);
             fbAuth = getAuth(app);
@@ -640,6 +640,17 @@
                 try { await window.signOutAuth(fbAuth); } catch(e) {}
             };
 
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(fbAuth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(fbAuth);
+                    }
+                } catch(e) { console.error("Auth init failed", e); }
+            };
+            await initAuth();
+
             onAuthStateChanged(fbAuth, async (user) => {
                 if (user) {
                     fbUserId = user.uid;
@@ -668,11 +679,6 @@
                     try { await signInAnonymously(fbAuth); } catch(e) {}
                 }
             });
-            
-            // Kickstart Auth pipeline
-            if(!fbAuth.currentUser) {
-                signInAnonymously(fbAuth).catch(e => console.error(e));
-            }
             
         } catch (error) {
             console.error("Firebase init failed:", error);
