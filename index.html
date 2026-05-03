@@ -261,7 +261,7 @@
                     <div class="flex justify-between items-center mb-3 z-10">
                         <div class="flex gap-2">
                             <button onclick="playNextTrack()" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition shadow-sm" title="Skip to Next">⏭ Skip</button>
-                            <button onclick="toggleLoop()" id="btn-loop" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔁 Loop</button>
+                            <button onclick="toggleLoop()" id="btn-loop" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition" title="Repeat Single Track">🔁 Loop Track</button>
                             <button onclick="shufflePlaylist()" id="btn-shuffle" class="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition">🔀 Shuffle</button>
                         </div>
                         <div class="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded border border-slate-800">
@@ -271,14 +271,27 @@
                         </div>
                     </div>
 
+                    <!-- Main Queue -->
                     <div id="playlist-container" class="hidden flex-col h-[120px] bg-slate-900/80 rounded-xl border border-slate-800 p-2 mb-4 z-10 shrink-0 shadow-inner">
                         <div id="playlist-list" class="flex-1 overflow-y-auto custom-scrollbar text-sm space-y-1 pr-2"></div>
                     </div>
 
+                    <!-- Auto-Remix Crate -->
+                    <div id="remix-playlist-container" class="hidden flex-col h-[100px] bg-fuchsia-900/20 rounded-xl border border-fuchsia-500/40 p-2 mb-4 z-10 shrink-0 shadow-inner shadow-fuchsia-900/30">
+                        <div class="text-[10px] text-fuchsia-400 font-bold uppercase mb-1 px-1 flex items-center gap-1">
+                            <span class="animate-pulse">🎛️</span> Auto-Remix Crate
+                        </div>
+                        <div id="remix-playlist-list" class="flex-1 overflow-y-auto custom-scrollbar text-sm space-y-1 pr-2"></div>
+                    </div>
+
                     <!-- YouTube Search Integration -->
                     <div class="flex gap-2 mb-3 z-10">
+                        <div class="flex items-center gap-2 bg-slate-900 px-3 border border-slate-700 rounded-lg shrink-0">
+                            <input type="checkbox" id="remix-mode-toggle" class="accent-fuchsia-500 w-4 h-4 cursor-pointer">
+                            <label for="remix-mode-toggle" class="text-[10px] text-fuchsia-400 font-bold cursor-pointer whitespace-nowrap tracking-wider">🎛️ REMIX</label>
+                        </div>
                         <input type="text" id="yt-search-input" placeholder="Search YouTube (e.g. Lofi Girl)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-red-500 transition" onkeypress="if(event.key === 'Enter') searchYouTube()">
-                        <button onclick="searchYouTube()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-sm">
+                        <button onclick="searchYouTube()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-sm shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                             Search
                         </button>
@@ -542,7 +555,7 @@
     let myUsername = "Anonymous";
     let globalHypeCount = 0;
     
-    // Bulletproof Emoji Tracker (Fixes Clock Skew)
+    // Bulletproof Emoji Tracker
     let lastReactionId = null;
     let isFirstReactionSync = true;
     
@@ -553,6 +566,7 @@
     
     // Playlist State
     let playlist = [];
+    let remixPlaylist = []; // NEW: Auto-Remix Queue State
     let currentTrackIndex = 0;
     let isLooping = false;
     let currentListenerTrack = null;
@@ -712,8 +726,8 @@
                 // If I am logged in and I own this station, it ALWAYS shows in My Stations (even offline)
                 if (fbUserId && data.hostUid === fbUserId) {
                     myStations.push({ id: doc.id, ...data });
-                } else if (Date.now() - data.updatedAt < 2 * 60 * 60 * 1000) {
-                    // Otherwise, if it's active in the last 2 hours, show it in Live Stations
+                } else {
+                    // Stations NEVER disappear now! Keep all other stations visible.
                     activeStations.push({ id: doc.id, ...data });
                 }
             });
@@ -761,6 +775,12 @@
             activeStations.forEach(data => {
                 if (isBroadcasting && data.id === myStationId) return;
 
+                const isOffline = (Date.now() - data.updatedAt > 2 * 60 * 60 * 1000);
+                const dotHtml = isOffline 
+                    ? `<span class="h-2 w-2 rounded-full bg-slate-500"></span>` 
+                    : `<span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>`;
+                const statusText = isOffline ? 'OFFLINE' : 'LIVE';
+
                 const div = document.createElement('div');
                 const stationColor = data.color || '#06b6d4';
                 div.className = 'bg-slate-900/80 p-3 rounded-xl flex justify-between items-center border border-slate-700 hover:bg-slate-800 cursor-pointer transition group shadow-sm';
@@ -776,11 +796,8 @@
                         <div>
                             <h4 class="text-white font-bold truncate transition" style="color: ${stationColor}">${escapeHTML(data.name)}</h4>
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="flex h-2 w-2 relative">
-                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                  <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                                </span>
-                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">${data.activeListeners ? data.activeListeners.length : 0} Listening • Host: ${escapeHTML(data.host || 'DJ')}</p>
+                                ${dotHtml}
+                                <p class="text-[10px] text-slate-400 uppercase tracking-wider">${data.activeListeners ? data.activeListeners.length : 0} Listening • Host: ${escapeHTML(data.host || 'DJ')} • ${statusText}</p>
                             </div>
                         </div>
                     </div>
@@ -839,6 +856,76 @@
         if (listenerHype) listenerHype.innerText = globalHypeCount;
     }
 
+    // --- AUTO-REMIX LOGIC ---
+    async function autoFindRemix(originalTitle) {
+        // Skip if it's already a remix or mashup to prevent infinite remix chains
+        if (originalTitle.toLowerCase().includes('remix') || originalTitle.toLowerCase().includes('mashup')) return;
+        
+        try {
+            const query = originalTitle + " remix";
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`);
+            const data = await res.json();
+            
+            if (data.items && data.items.length > 0) {
+                const item = data.items[0];
+                remixPlaylist.push({
+                    type: 'youtube',
+                    id: item.id.videoId,
+                    name: item.snippet.title
+                });
+                renderRemixPlaylist();
+            }
+        } catch(e) {
+            console.warn("Failed to auto-find remix", e);
+        }
+    }
+
+    function renderRemixPlaylist() {
+        const container = document.getElementById('remix-playlist-container');
+        const list = document.getElementById('remix-playlist-list');
+        
+        if (remixPlaylist.length === 0) {
+            container.classList.add('hidden');
+            container.classList.remove('flex');
+            return;
+        }
+        
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+        list.innerHTML = '';
+        
+        remixPlaylist.forEach((item, i) => {
+            const el = document.createElement('div');
+            const safeTitle = escapeHTML(item.name).replace(/'/g, "\\'");
+            el.className = `flex justify-between items-center group transition px-2 py-1 rounded-lg text-xs font-medium text-fuchsia-300 hover:bg-fuchsia-900/50 border border-transparent hover:border-fuchsia-500/50 cursor-pointer`;
+            
+            el.innerHTML = `
+                <div class="truncate flex-1" onclick="queueRemixTrack(${i}, event)">
+                    <span class="opacity-50">+</span> 🎛️ ${escapeHTML(item.name)}
+                </div>
+                <button onclick="removeRemixTrack(${i}, event)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 font-bold px-2 transition rounded hover:bg-red-500/20 shrink-0 ml-2">×</button>
+            `;
+            list.appendChild(el);
+        });
+    }
+
+    function queueRemixTrack(index, event) {
+        if(event) event.stopPropagation();
+        const track = remixPlaylist[index];
+        remixPlaylist.splice(index, 1);
+        renderRemixPlaylist();
+        
+        // Add to main queue without finding a remix of the remix
+        queueYouTubeVideo(track.id, track.name, false, null, true);
+    }
+
+    function removeRemixTrack(index, event) {
+        if(event) event.stopPropagation();
+        remixPlaylist.splice(index, 1);
+        renderRemixPlaylist();
+    }
+
+
     // --- LOCAL FILE PLAYLIST LOGIC ---
     function handleMusicUpload(e) {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -847,7 +934,12 @@
 
         if (newFiles.length > 0) {
             const wasEmpty = playlist.length === 0;
-            playlist = playlist.concat(newFiles);
+            
+            newFiles.forEach(f => {
+                playlist.push(f);
+                // Also try to find a remix of the local file's name!
+                autoFindRemix(f.name.replace(/\.[^/.]+$/, ""));
+            });
             
             // Force the queue container to be visible immediately
             document.getElementById('playlist-container').classList.remove('hidden');
@@ -864,7 +956,8 @@
         e.target.value = '';
     }
 
-    function queueYouTubeVideo(videoId, title, playNow, event) {
+    // Notice the new skipRemixSearch parameter!
+    function queueYouTubeVideo(videoId, title, playNow, event, skipRemixSearch = false) {
         if(event) event.stopPropagation();
         const item = { type: 'youtube', id: videoId, name: title };
         const wasEmpty = playlist.length === 0;
@@ -880,6 +973,10 @@
             playTrack(playlist.length - 1);
         } else {
             syncPlaylistToFirebase();
+        }
+
+        if (!skipRemixSearch) {
+            autoFindRemix(title);
         }
     }
 
@@ -959,18 +1056,13 @@
         setTimeout(() => isTransitioningTrack = false, 1500); 
 
         let nextIndex = currentTrackIndex + 1;
-        if (nextIndex >= playlist.length) {
-            if (isLooping) {
-                nextIndex = 0;
-            } else {
-                const djPlayer = document.getElementById('dj-audio-player');
-                djPlayer.pause();
-                if(djYtPlayer && typeof djYtPlayer.stopVideo === 'function') djYtPlayer.stopVideo();
-                document.getElementById('vinyl-icon').classList.add('vinyl-paused');
-                pushSyncStateToFirebase('paused', 'Queue Ended');
-                return; 
-            }
+        
+        if (isLooping) {
+            nextIndex = currentTrackIndex; // Loop the single track
+        } else if (nextIndex >= playlist.length) {
+            nextIndex = 0; // Wrap around to the beginning of the queue!
         }
+        
         playTrack(nextIndex);
     }
 
@@ -1053,7 +1145,7 @@
             currentTrackIndex = 0;
             const djPlayer = document.getElementById('dj-audio-player');
             djPlayer.pause();
-            if(djYtPlayer && typeof djYtPlayer.pauseVideo === 'function') djYtPlayer.pauseVideo();
+            if(djYtPlayer && typeof djYtPlayer.stopVideo === 'function') djYtPlayer.stopVideo();
             document.getElementById('vinyl-icon').classList.add('vinyl-paused');
             pushSyncStateToFirebase('paused', 'No track selected');
         } else if (wasPlaying) {
@@ -1093,8 +1185,15 @@
 
     // --- YOUTUBE LOGIC ---
     async function searchYouTube() {
-        const query = document.getElementById('yt-search-input').value.trim();
+        let query = document.getElementById('yt-search-input').value.trim();
         if(!query) return;
+
+        // Auto-append remix if the toggle is on!
+        const remixMode = document.getElementById('remix-mode-toggle');
+        if (remixMode && remixMode.checked && !query.toLowerCase().includes('remix')) {
+            query += " remix";
+        }
+
         const resContainer = document.getElementById('yt-results-container');
         resContainer.innerHTML = '<div class="text-xs text-slate-400 p-2 text-center">Searching...</div>';
         resContainer.classList.remove('hidden');
@@ -1580,9 +1679,14 @@
                                 if (e.data === YT.PlayerState.ENDED) {
                                     if (window.currentStationData && (Date.now() - window.currentStationData.updatedAt > 15000)) {
                                         const pl = window.currentStationData.playlist || [];
-                                        const nextIdx = (window.currentStationData.currentTrackIndex || 0) + 1;
-                                        
-                                        if (nextIdx < pl.length) {
+                                        if (pl.length > 0) {
+                                            let nextIdx = (window.currentStationData.currentTrackIndex || 0) + 1;
+                                            
+                                            // Listeners also autonomously wrap the queue around!
+                                            if (nextIdx >= pl.length) {
+                                                nextIdx = 0; 
+                                            }
+                                            
                                             const nextTrack = pl[nextIdx];
                                             if (nextTrack.type === 'youtube') {
                                                 fbUpdateDoc(currentStationRef, {
@@ -1929,7 +2033,39 @@
         if (secretCodeBuffer.endsWith("07312012")) { secretCodeBuffer = ""; adminWipeAllStations(); }
     });
 
-    window.onload = initFirebaseAndApp;
+    function applySundayRemixNight() {
+        const now = new Date();
+        const isSunday = now.getDay() === 0; // 0 is Sunday
+        const isNight = now.getHours() >= 17; // 5 PM or later
+        
+        if (isSunday && isNight) {
+            // Apply wild remix night theme
+            document.body.style.background = "linear-gradient(-45deg, #2e026d, #4c1d95, #831843, #2e026d)";
+            document.body.style.backgroundSize = "400% 400%";
+            
+            // Add flashy banner to setup menu
+            const setupContent = document.getElementById('main-setup-content');
+            if (setupContent) {
+                const banner = document.createElement('div');
+                banner.className = "bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white text-center py-2 px-4 rounded-xl font-bold tracking-widest uppercase text-[10px] animate-pulse mb-4 shadow-[0_0_15px_rgba(192,38,211,0.5)] border border-fuchsia-400/50";
+                banner.innerText = "🎧 SUNDAY NIGHT REMIX NIGHT IS ACTIVE! 🎧";
+                setupContent.insertBefore(banner, setupContent.firstChild);
+            }
+            
+            // Change default colors for new stations to Fuchsia/Purple
+            const colorInput = document.getElementById('station-color-input');
+            if(colorInput) colorInput.value = "#d946ef"; 
+            
+            // Auto-check Remix Mode!
+            const remixMode = document.getElementById('remix-mode-toggle');
+            if(remixMode) remixMode.checked = true;
+        }
+    }
+
+    window.onload = function() {
+        applySundayRemixNight();
+        initFirebaseAndApp();
+    };
 </script>
 </body>
 </html>
