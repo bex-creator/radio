@@ -1064,7 +1064,7 @@
                             // Fail-safe: Skip if stuck loading or completely blocked for 8 seconds
                             window.unplayableTimeout = setTimeout(() => {
                                 const state = event.target.getPlayerState();
-                                if (state === -1 || state === 5 || state === 2) playNextTrack();
+                                if (state === -1 || state === 5 || state === 2) playNextTrack(true);
                             }, 8000);
                         },
                         'onStateChange': (event) => {
@@ -1084,7 +1084,7 @@
                         },
                         'onError': (event) => {
                             console.error("YT Blocked/Error: Skipping track...");
-                            playNextTrack();
+                            setTimeout(() => playNextTrack(true), 1000); // Force skip after short delay
                         }
                     }
                 });
@@ -1101,7 +1101,7 @@
                 window.unplayableTimeout = setTimeout(() => {
                     if (djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
                         const state = djYtPlayer.getPlayerState();
-                        if (state === -1 || state === 5 || state === 2) playNextTrack();
+                        if (state === -1 || state === 5 || state === 2) playNextTrack(true);
                     }
                 }, 8000);
             }
@@ -1112,8 +1112,8 @@
     }
 
     let isTransitioningTrack = false;
-    function playNextTrack() {
-        if (isTransitioningTrack) return;
+    function playNextTrack(forceSkip = false) {
+        if (isTransitioningTrack && !forceSkip) return;
         if (playlist.length === 0) return;
         
         // Prevent accidental double-skips
@@ -1137,10 +1137,8 @@
             const item = playlist[currentTrackIndex];
             if (item.type === 'youtube' && djYtPlayer && typeof djYtPlayer.getPlayerState === 'function') {
                 try {
-                    const vidObj = djYtPlayer.getVideoData();
-                    if (vidObj && vidObj.video_id && vidObj.video_id === item.id) {
-                        pushSyncStateToFirebase('playing', item.name, vidObj.video_id, djYtPlayer.getCurrentTime());
-                    }
+                    // FIX: No longer rely on the ghost YT ID, explicitly push the known playlist item ID
+                    pushSyncStateToFirebase('playing', item.name, item.id, djYtPlayer.getCurrentTime() || 0);
                 } catch(e) {}
             }
         }
@@ -1558,7 +1556,7 @@
                     
                     if (duration > 0 && current > 0 && (duration - current) < 2.0) {
                          if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                              playNextTrack();
+                              playNextTrack(true);
                          }
                     }
                 } catch(e) {}
@@ -1652,7 +1650,7 @@
                     const current = djYtPlayer.getCurrentTime() || 0;
                     const duration = djYtPlayer.getDuration() || 0;
                     if (duration > 0 && current > 0 && (duration - current) < 2.0) {
-                         if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) playNextTrack();
+                         if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) playNextTrack(true);
                     }
                 } catch(e) {}
             }
